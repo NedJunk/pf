@@ -1,7 +1,7 @@
 # Voice-First Development Partner Design Spec
 
 ## 1. Overview
-The Voice-First Development Partner is an interactive, speech-driven system designed to handle the high-friction "capture and refinement" phase of personal development and project management. It acts as a "Smart Entry Point," allowing the user to brain-dump, untangle tasks, and refine requirements through natural conversation, without the need to be at a keyboard.
+The Voice-First Development Partner is an interactive, speech-driven system designed to handle the high-friction "capture and refinement" phase of project design and management. It acts as a foundational "Smart Entry Point," allowing the user to brain-dump, untangle tasks, and refine requirements through natural conversation, without the need to be at a keyboard.
 
 ## 2. Core Architecture
 
@@ -17,11 +17,11 @@ The system is built around three distinct phases: Capture, Context, and Artifact
   1. *Project Map / Knowledge Graph:* How current and past projects relate.
   2. *Active High-Level Goals:* The overarching *why* driving the work.
   3. *Recent Conversation State:* The immediate history of the interaction.
-- **The "Whisperer" Model:** During a live voice session, more powerful, asynchronous models acting as specialized "Experts" (e.g., Project Manager, System Architect) analyze the conversation in the background. They inject insights back into the Router via a back-channel. The Router then voices these insights to the user (e.g., "The PM is reminding me that we already have a task for this...").
+- **The "Whisperer" Model:** During a live voice session, specialized "Expert" agents operate asynchronously in the background. They inject insights back into the Router via a back-channel. The Router then voices these insights to the user (e.g., "The PM is reminding me that we already have a task for this...").
 
-### 2.3 Artifacts & Async Reasoning
-- **Deep Thinking Offload:** Once a session concludes, the heavy-duty reasoning is handed off entirely to powerful LLMs (e.g., Claude, GPT-4).
-- **Document Generation:** These async models process the full session and update or generate artifacts (e.g., Markdown specs, prioritized task lists, or structured logs) directly into the user's workspace/file system.
+### 2.3 Artifact Generation
+- **Document Generation:** Upon conclusion of a session, the system processes the full session transcript to update or generate foundational artifacts (e.g., Markdown specs, structured logs) directly into the user's workspace/file system.
+- **Separation of Concerns:** Deeper domain-specific reasoning and action based on these outputs is explicitly out of scope for this routing layer; it will be handled by higher-level systems and specialized expert agents built on top of this meta-tool.
 
 ## 3. Observability & Refinement
 
