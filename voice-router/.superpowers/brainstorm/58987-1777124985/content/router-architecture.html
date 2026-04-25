@@ -1,0 +1,76 @@
+<h2>The "Thin Router" Architecture</h2>
+<p class="subtitle">A context-aware entry point that delegates reasoning to powerful models.</p>
+
+<div class="mockup">
+  <div class="mockup-header">System Flow Diagram</div>
+  <div class="mockup-body">
+    <div style="display: flex; flex-direction: column; gap: 20px; align-items: center; padding: 20px;">
+      
+      <div class="card" style="width: 300px; border: 2px solid var(--accent); background: rgba(var(--accent-rgb), 0.1);">
+        <div class="card-body">
+          <h3 style="margin:0">1. Voice Entry (The Router)</h3>
+          <p style="font-size: 0.9em; opacity: 0.8;">"Hey, I have an idea for the Personal Development suite..."</p>
+          <div class="label" style="background: var(--accent); color: white;">PROBES & ROUTES</div>
+        </div>
+      </div>
+
+      <div style="font-size: 24px;">↓</div>
+
+      <div class="card" style="width: 350px;">
+        <div class="card-body">
+          <h3 style="margin:0">2. Context Injection</h3>
+          <p style="font-size: 0.9em; opacity: 0.8;">Router adds current project state, active goals, and history metadata.</p>
+        </div>
+      </div>
+
+      <div style="font-size: 24px;">↓</div>
+
+      <div class="card" style="width: 300px; border: 2px dashed var(--border);">
+        <div class="card-body">
+          <h3 style="margin:0">3. Async Reasoning</h3>
+          <p style="font-size: 0.9em; opacity: 0.8;">Powerful models (Claude, GPT-4, Gemini Pro) process the dump.</p>
+          <div class="label">DEEP THINKING</div>
+        </div>
+      </div>
+
+      <div style="font-size: 24px;">↓</div>
+
+      <div class="card" style="width: 350px; background: var(--bg-secondary);">
+        <div class="card-body">
+          <h3 style="margin:0">4. Updated Artifacts</h3>
+          <p style="font-size: 0.9em; opacity: 0.8;">Updated Markdown specs, new task lists, and refined project plans.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>What is the most critical "Context" the Router needs to hold?</h3>
+  <p>To probe effectively without being the "Brain," what must the Router always have at its fingertips?</p>
+</div>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="graph" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Project Map / Knowledge Graph</h3>
+      <p>Knowing how all projects relate so it can ask: "Does this affect the Time Management tool or the Wellness one?"</p>
+    </div>
+  </div>
+  <div class="option" data-choice="recent" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Recent Conversation State</h3>
+      <p>Remembering what we talked about 10 minutes ago so it doesn't repeat questions.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="goals" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Active High-Level Goals</h3>
+      <p>Knowing your *why* for the week so it can probe: "How does this help with your goal of 'Reducing Overwhelm'?"</p>
+    </div>
+  </div>
+</div>

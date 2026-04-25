@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Voice-First Development Partner** — a thin Router that facilitates voice capture sessions. The Router is an Active Facilitator: it asks clarifying questions, suggests categories, voices expert "whispers", and never performs deep analysis or code generation. That boundary is a core design constraint, not an implementation detail.
 
-The git repo root is one level up (`/Users/dg/Dev/gcsb`). This `pf/` directory is the project root — all commands run from here.
+The git repo root is one level up (`/Users/dg/Dev/gcsb`). This `voice-router/` directory is the project root — all commands run from here.
 
 ## Commands
 

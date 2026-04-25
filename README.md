@@ -6,7 +6,7 @@ Personal development projects.
 
 | Directory | Description |
 |---|---|
-| [`pf/`](pf/) | Voice-First Development Partner — a thin routing layer for capturing ideas through speech |
+| [`voice-router/`](voice-router/) | Voice-First Development Partner — a thin routing layer for capturing ideas through speech |
 
 ## Docs
 
