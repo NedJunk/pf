@@ -53,8 +53,11 @@ EXAMPLE_TRANSCRIPTS = [
     }
 ]
 
-# Every behavior tag used in `validates` must appear here.
-# Tests will fail if a behavior is listed here but no transcript validates it.
+# Every behavior tag in `validates` above must appear here.
+# The test verifies coverage: every REQUIRED_BEHAVIORS entry is claimed by at least one turn.
+# Note: `validates` tags document *intended* behavior — they are not asserted by driving the Router
+# with live speech. Integration tests against the real Gemini API are needed to verify the LLM
+# actually exhibits these behaviors at runtime.
 REQUIRED_BEHAVIORS = [
     "asks_clarifying_question",  # Router probes ambiguous input rather than accepting it passively
     "prompts_for_specifics",     # Router pushes the user to be concrete
