@@ -17,7 +17,7 @@ def _http_context(history=None):
     return {
         "session_id": "s1",
         "context": {
-            "history": history or ["User: Hello", "Assistant: Hi there"],
+            "history": history if history is not None else ["User: Hello", "Assistant: Hi there"],
             "goals": ["ship MVP"],
             "project_map": ["voice-router"],
         },
