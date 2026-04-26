@@ -102,8 +102,8 @@ class LiveSession:
                             data=message["bytes"], mime_type="audio/pcm;rate=16000"
                         )
                     )
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("_browser_to_gemini ended: %s", exc)
 
     async def _gemini_to_browser(self, browser_ws: WebSocket) -> None:
         async for response in self._gemini_session.receive():
@@ -130,7 +130,7 @@ class LiveSession:
                 )
             if sc.turn_complete:
                 await browser_ws.send_text(json.dumps({"type": "turn_complete"}))
-                asyncio.create_task(self._post_turn_event())
+                await self._post_turn_event()
             if getattr(sc, "interrupted", False):
                 await browser_ws.send_text(json.dumps({"type": "interrupted"}))
 
