@@ -1,3 +1,4 @@
+import pytest
 from orchestrator.agent_registry import load_registry
 
 
@@ -28,3 +29,17 @@ def test_load_registry_defaults(tmp_path):
     _, threshold, timeout = load_registry(str(cfg))
     assert threshold == 0.5
     assert timeout == 2
+
+
+def test_load_registry_raises_on_malformed_agent_entry(tmp_path):
+    cfg = tmp_path / "agents.yaml"
+    cfg.write_text("confidence_threshold: 0.5\nagent_timeout_seconds: 2\nagents:\n  - name: Agent1\n")
+    with pytest.raises(ValueError, match="Malformed agent entry"):
+        load_registry(str(cfg))
+
+
+def test_load_registry_raises_on_out_of_range_threshold(tmp_path):
+    cfg = tmp_path / "agents.yaml"
+    cfg.write_text("confidence_threshold: 1.5\nagent_timeout_seconds: 2\nagents: []\n")
+    with pytest.raises(ValueError, match="confidence_threshold"):
+        load_registry(str(cfg))
