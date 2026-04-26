@@ -26,6 +26,7 @@ async function startSession() {
       goals: goals ? [goals] : [],
     }),
   });
+  if (!resp.ok) { setStatus(`Error ${resp.status} — could not start session`); return; }
   const { session_id } = await resp.json();
   sessionId = session_id;
 
@@ -35,9 +36,14 @@ async function startSession() {
   ws.onopen = async () => {
     setStatus('Listening');
     document.getElementById('endBtn').disabled = false;
-    await startMic((pcmBuffer) => {
-      if (ws && ws.readyState === WebSocket.OPEN) ws.send(pcmBuffer);
-    });
+    try {
+      await startMic((pcmBuffer) => {
+        if (ws && ws.readyState === WebSocket.OPEN) ws.send(pcmBuffer);
+      });
+    } catch (err) {
+      setStatus(`Mic error: ${err.message || err}`);
+      endSession();
+    }
   };
 
   ws.onmessage = (event) => {
@@ -61,14 +67,17 @@ async function startSession() {
 }
 
 async function endSession() {
-  if (sessionId) {
-    await fetch(`/sessions/${sessionId}`, { method: 'DELETE' });
+  try {
+    if (sessionId) await fetch(`/sessions/${sessionId}`, { method: 'DELETE' });
+  } catch (_) {
+    // ignore — proceed with local cleanup regardless
+  } finally {
+    if (ws) ws.close();
+    stopMic();
+    setStatus('Ended');
+    document.getElementById('endBtn').disabled = true;
+    document.getElementById('startBtn').disabled = false;
   }
-  if (ws) ws.close();
-  stopMic();
-  setStatus('Ended');
-  document.getElementById('endBtn').disabled = true;
-  document.getElementById('startBtn').disabled = false;
 }
 
 function handleControlFrame(msg) {
