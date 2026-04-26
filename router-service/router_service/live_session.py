@@ -1,0 +1,163 @@
+import asyncio
+import base64
+import json
+import logging
+import os
+from typing import Optional
+
+import httpx
+from fastapi import WebSocket
+from google import genai
+from google.genai import types
+
+from src.router.behavioral_contract import BEHAVIORAL_CONTRACT
+from src.router.transcript_writer import TranscriptWriter
+
+logger = logging.getLogger(__name__)
+
+
+class LiveSession:
+    def __init__(
+        self,
+        session_id: str,
+        project_map: list[str],
+        goals: list[str],
+        api_key: str,
+        orchestrator_url: str,
+        transcript_output_dir: str,
+        history_tail_length: int,
+        live_api_model: str,
+    ) -> None:
+        self.session_id = session_id
+        self.project_map = project_map
+        self.goals = goals
+        self._api_key = api_key
+        self._orchestrator_url = orchestrator_url
+        self._transcript_output_dir = transcript_output_dir
+        self._history_tail_length = history_tail_length
+        self._live_api_model = live_api_model
+
+        self._client = genai.Client(api_key=api_key)
+        self._gemini_session = None
+        self._gemini_cm = None
+        self._history: list[str] = []
+        self._whisper_queue: asyncio.Queue = asyncio.Queue()
+        self._tasks: list[asyncio.Task] = []
+
+    async def connect(self) -> None:
+        config = {
+            "response_modalities": ["AUDIO"],
+            "input_audio_transcription": {},
+            "output_audio_transcription": {},
+            "system_instruction": BEHAVIORAL_CONTRACT,
+        }
+        self._gemini_cm = self._client.aio.live.connect(
+            model=self._live_api_model, config=config
+        )
+        self._gemini_session = await self._gemini_cm.__aenter__()
+        context = (
+            f"Session context — Goals: {'; '.join(self.goals) or 'None'}. "
+            f"Project map: {'; '.join(self.project_map) or 'None'}."
+        )
+        await self._gemini_session.send_realtime_input(text=context)
+
+    async def stream(self, browser_ws: WebSocket) -> None:
+        tasks = [
+            asyncio.create_task(self._browser_to_gemini(browser_ws)),
+            asyncio.create_task(self._gemini_to_browser(browser_ws)),
+            asyncio.create_task(self._whisper_drain(browser_ws)),
+        ]
+        self._tasks = tasks
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for task in pending:
+            task.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)
+
+    def inject_whisper(self, source: str, message: str) -> None:
+        self._whisper_queue.put_nowait({"source": source, "message": message})
+
+    async def close(self) -> None:
+        for task in self._tasks:
+            task.cancel()
+        await asyncio.gather(*self._tasks, return_exceptions=True)
+        if self._gemini_cm:
+            await self._gemini_cm.__aexit__(None, None, None)
+        try:
+            os.makedirs(self._transcript_output_dir, exist_ok=True)
+            TranscriptWriter(self._transcript_output_dir).write_transcript(
+                self.session_id, self._history
+            )
+        except Exception as exc:
+            logger.error("Failed to write transcript for session %s: %s", self.session_id, exc)
+
+    async def _browser_to_gemini(self, browser_ws: WebSocket) -> None:
+        try:
+            while True:
+                message = await browser_ws.receive()
+                if message.get("type") == "websocket.disconnect":
+                    break
+                if message.get("bytes"):
+                    await self._gemini_session.send_realtime_input(
+                        audio=types.Blob(
+                            data=message["bytes"], mime_type="audio/pcm;rate=16000"
+                        )
+                    )
+        except Exception:
+            pass
+
+    async def _gemini_to_browser(self, browser_ws: WebSocket) -> None:
+        async for response in self._gemini_session.receive():
+            sc = response.server_content
+            if not sc:
+                continue
+            if sc.model_turn:
+                for part in sc.model_turn.parts:
+                    if part.inline_data:
+                        await browser_ws.send_bytes(
+                            base64.b64decode(part.inline_data.data)
+                        )
+            if sc.input_transcription and sc.input_transcription.text:
+                text = sc.input_transcription.text
+                self._history.append(f"User: {text}")
+                await browser_ws.send_text(
+                    json.dumps({"type": "transcript", "role": "user", "text": text})
+                )
+            if sc.output_transcription and sc.output_transcription.text:
+                text = sc.output_transcription.text
+                self._history.append(f"Assistant: {text}")
+                await browser_ws.send_text(
+                    json.dumps({"type": "transcript", "role": "assistant", "text": text})
+                )
+            if sc.turn_complete:
+                await browser_ws.send_text(json.dumps({"type": "turn_complete"}))
+                asyncio.create_task(self._post_turn_event())
+            if getattr(sc, "interrupted", False):
+                await browser_ws.send_text(json.dumps({"type": "interrupted"}))
+
+    async def _whisper_drain(self, browser_ws: WebSocket) -> None:
+        while True:
+            whisper = await self._whisper_queue.get()
+            await browser_ws.send_text(json.dumps({
+                "type": "whisper",
+                "source": whisper["source"],
+                "message": whisper["message"],
+            }))
+            await self._gemini_session.send_realtime_input(
+                text=f"[WHISPER from {whisper['source']}]: {whisper['message']}"
+            )
+
+    async def _post_turn_event(self) -> None:
+        tail = self._history[-self._history_tail_length:]
+        payload = {
+            "session_id": self.session_id,
+            "history_tail": tail,
+            "goals": self.goals,
+            "project_map": self.project_map,
+        }
+        async with httpx.AsyncClient() as client:
+            try:
+                await client.post(
+                    f"{self._orchestrator_url}/turns", json=payload, timeout=2.0
+                )
+            except Exception as exc:
+                logger.warning("Failed to post turn event: %s", exc)
