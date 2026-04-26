@@ -20,7 +20,7 @@ class HealthMonitor:
         self._task = asyncio.create_task(self._poll_loop())
 
     async def stop(self) -> None:
-        if self._task:
+        if self._task and not self._task.done():
             self._task.cancel()
             try:
                 await self._task
