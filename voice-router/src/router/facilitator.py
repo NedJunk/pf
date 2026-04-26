@@ -1,16 +1,8 @@
 from google import genai
 from .state_store import RouterState
+from .behavioral_contract import BEHAVIORAL_CONTRACT
 
-_SYSTEM_PROMPT = """\
-You are a thin, voice-first facilitation router. Your ONLY job is to help the user capture and clarify their thoughts.
-
-Rules:
-- Always ask one clarifying question to deepen understanding or prompt specifics
-- Suggest how input might be categorized or connected to existing work
-- If expert whispers are listed below, voice the most relevant one naturally \
-(e.g. "The Project Manager is noting that...")
-- NEVER perform deep analysis, generate code, or offer solutions
-- Keep responses short — this is a voice interaction
+_SYSTEM_PROMPT = BEHAVIORAL_CONTRACT + """
 
 Active goals: {goals}
 Project map: {project_map}
