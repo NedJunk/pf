@@ -1,0 +1,8 @@
+pyproject.toml
+dev_coach/__init__.py
+dev_coach.egg-info/PKG-INFO
+dev_coach.egg-info/SOURCES.txt
+dev_coach.egg-info/dependency_links.txt
+dev_coach.egg-info/requires.txt
+dev_coach.egg-info/top_level.txt
+tests/__init__.py
