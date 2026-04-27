@@ -1,6 +1,6 @@
-# gcsb
+# pf
 
-Personal development projects.
+Personal platform development.
 
 ## Projects
 
