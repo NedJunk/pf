@@ -1,0 +1,81 @@
+[
+  {
+    "id": "hlth-001",
+    "description": "Addressing chronic low energy in the afternoon",
+    "category": "clear",
+    "context": {
+      "history_tail": [
+        "User: I crash every afternoon around 2pm no matter what I do.",
+        "Assistant: What does your sleep look like — time, quality, consistency?",
+        "User: I sleep about 7 hours but it's not consistent. Some nights I'm up until 1am."
+      ],
+      "goals": ["Improve daily energy levels"],
+      "project_map": []
+    },
+    "expected_expert": "HealthCoach",
+    "note": ""
+  },
+  {
+    "id": "hlth-002",
+    "description": "Building a sustainable exercise habit",
+    "category": "clear",
+    "context": {
+      "history_tail": [
+        "User: I've tried getting into running three times and always quit after two weeks.",
+        "Assistant: What usually causes you to stop?",
+        "User: It starts feeling like a chore and I dread it the night before."
+      ],
+      "goals": ["Establish a consistent fitness routine"],
+      "project_map": []
+    },
+    "expected_expert": "HealthCoach",
+    "note": ""
+  },
+  {
+    "id": "hlth-003",
+    "description": "Managing work-related stress and mental load",
+    "category": "clear",
+    "context": {
+      "history_tail": [
+        "User: I feel like I can't switch off at the end of the day. Work thoughts just follow me everywhere.",
+        "Assistant: Is there a specific time when it gets worse, or is it constant?",
+        "User: Worse in the evenings. I'll be watching TV and suddenly I'm anxious about tomorrow's tasks."
+      ],
+      "goals": ["Reduce stress and improve mental recovery"],
+      "project_map": []
+    },
+    "expected_expert": "HealthCoach",
+    "note": ""
+  },
+  {
+    "id": "hlth-004",
+    "description": "Improving eating habits around a deep work schedule",
+    "category": "clear",
+    "context": {
+      "history_tail": [
+        "User: I skip lunch most days because I'm in flow and don't want to break it.",
+        "Assistant: And how does that affect your afternoon?",
+        "User: I'm ravenous by 4pm and end up eating whatever's convenient, which is usually junk."
+      ],
+      "goals": ["Build better nutrition habits that fit a deep work schedule"],
+      "project_map": []
+    },
+    "expected_expert": "HealthCoach",
+    "note": ""
+  },
+  {
+    "id": "hlth-neg-001",
+    "description": "User asking what the assistant is here to help with",
+    "category": "negative",
+    "context": {
+      "history_tail": [
+        "User: Can you remind me what you're actually here to help me with?",
+        "Assistant: I'm here to help you think through what's on your mind and structure your thinking. I'll ask questions to help you clarify goals and next steps."
+      ],
+      "goals": [],
+      "project_map": []
+    },
+    "expected_expert": null,
+    "note": ""
+  }
+]
