@@ -8,7 +8,7 @@ services:
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - ORCHESTRATOR_URL=http://orchestrator:8081
-      - LIVE_API_MODEL=${LIVE_API_MODEL:-gemini-2.0-flash-live-001}
+      - LIVE_API_MODEL=${LIVE_API_MODEL:-gemini-2.5-flash-native-audio-latest}
       - HISTORY_TAIL_LENGTH=${HISTORY_TAIL_LENGTH:-10}
       - TRANSCRIPT_OUTPUT_DIR=/app/transcripts
     volumes:
