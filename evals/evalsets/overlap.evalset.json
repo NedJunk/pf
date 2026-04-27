@@ -1,0 +1,66 @@
+[
+  {
+    "id": "ovlp-001",
+    "description": "Vocal strain affecting upcoming shows",
+    "category": "overlap",
+    "context": {
+      "history_tail": [
+        "User: My voice has been getting tired much faster during rehearsals lately.",
+        "Assistant: Is this new, or has it been building over time?",
+        "User: About three weeks since it started. I've got two shows next month I'm worried about."
+      ],
+      "goals": ["Protect vocal health ahead of live shows"],
+      "project_map": ["singer-songwriter career development"]
+    },
+    "expected_expert": "HealthCoach",
+    "note": "The immediate concern is physical — vocal cord health and recovery. ArtistManager is downstream (show planning) but the speaker is asking about the symptom, not the scheduling consequence."
+  },
+  {
+    "id": "ovlp-002",
+    "description": "Anxiety in the hour before going on stage",
+    "category": "overlap",
+    "context": {
+      "history_tail": [
+        "User: I get really bad stage fright. It's not just nerves — it's affecting my performance.",
+        "Assistant: Does it hit before you go on, during, or both?",
+        "User: Mostly in the hour before. By the time I'm on stage it's manageable but the buildup is rough."
+      ],
+      "goals": ["Perform consistently and confidently live"],
+      "project_map": ["singer-songwriter career development"]
+    },
+    "expected_expert": "HealthCoach",
+    "note": "Stage fright in the hour before a show is an anxiety management problem, not a performance strategy problem. ArtistManager might address pre-show routines at a career level, but the speaker is describing a psychological symptom."
+  },
+  {
+    "id": "ovlp-003",
+    "description": "Exhaustion and motivation loss mid-tour",
+    "category": "overlap",
+    "context": {
+      "history_tail": [
+        "User: I'm three weeks into a five week run and I'm completely burnt out.",
+        "Assistant: Is it physical exhaustion, or is the motivation gone too?",
+        "User: Both. I'm going through the motions on stage and I hate that."
+      ],
+      "goals": ["Complete the tour without burning out further"],
+      "project_map": ["singer-songwriter career development"]
+    },
+    "expected_expert": "HealthCoach",
+    "note": "The speaker describes burnout symptoms — physical and motivational depletion. Recovery strategies are the primary need. ArtistManager could address show-by-show adjustments but that is secondary to the underlying state."
+  },
+  {
+    "id": "ovlp-004",
+    "description": "Creative block following a difficult personal period",
+    "category": "overlap",
+    "context": {
+      "history_tail": [
+        "User: I haven't been able to write anything in two months. Every time I sit down nothing comes.",
+        "Assistant: Has anything changed in your life around the time it started?",
+        "User: I went through a rough patch personally. I think I'm out of it now but the writing hasn't come back."
+      ],
+      "goals": ["Rebuild a creative writing practice"],
+      "project_map": ["singer-songwriter career development"]
+    },
+    "expected_expert": "ArtistManager",
+    "note": "The speaker reports being through the personal difficulty and is now focused on rebuilding creative practice. This is a craft and routine question, not an active mental health intervention. ArtistManager addresses creative process; HealthCoach would be appropriate if the mood issues were ongoing."
+  }
+]
