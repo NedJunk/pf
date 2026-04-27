@@ -50,6 +50,9 @@ class LiveSession:
             "input_audio_transcription": {},
             "output_audio_transcription": {},
             "system_instruction": BEHAVIORAL_CONTRACT,
+            "generation_config": {
+                "thinking_config": {"thinking_budget": 0},
+            },
         }
         self._gemini_cm = self._client.aio.live.connect(
             model=self._live_api_model, config=config
@@ -107,29 +110,30 @@ class LiveSession:
 
     async def _gemini_to_browser(self, browser_ws: WebSocket) -> None:
         try:
-            async for response in self._gemini_session.receive():
-                if response.data:
-                    await browser_ws.send_bytes(response.data)
-                sc = response.server_content
-                if not sc:
-                    continue
-                if sc.input_transcription and sc.input_transcription.text:
-                    text = sc.input_transcription.text
-                    self._history.append(f"User: {text}")
-                    await browser_ws.send_text(
-                        json.dumps({"type": "transcript", "role": "user", "text": text})
-                    )
-                if sc.output_transcription and sc.output_transcription.text:
-                    text = sc.output_transcription.text
-                    self._history.append(f"Assistant: {text}")
-                    await browser_ws.send_text(
-                        json.dumps({"type": "transcript", "role": "assistant", "text": text})
-                    )
-                if sc.turn_complete:
-                    await browser_ws.send_text(json.dumps({"type": "turn_complete"}))
-                    await self._post_turn_event()
-                if getattr(sc, "interrupted", False):
-                    await browser_ws.send_text(json.dumps({"type": "interrupted"}))
+            while True:
+                async for response in self._gemini_session.receive():
+                    if response.data:
+                        await browser_ws.send_bytes(response.data)
+                    sc = response.server_content
+                    if not sc:
+                        continue
+                    if sc.input_transcription and sc.input_transcription.text:
+                        text = sc.input_transcription.text
+                        self._history.append(f"User: {text}")
+                        await browser_ws.send_text(
+                            json.dumps({"type": "transcript", "role": "user", "text": text})
+                        )
+                    if sc.output_transcription and sc.output_transcription.text:
+                        text = sc.output_transcription.text
+                        self._history.append(f"Assistant: {text}")
+                        await browser_ws.send_text(
+                            json.dumps({"type": "transcript", "role": "assistant", "text": text})
+                        )
+                    if sc.turn_complete:
+                        await browser_ws.send_text(json.dumps({"type": "turn_complete"}))
+                        await self._post_turn_event()
+                    if getattr(sc, "interrupted", False):
+                        await browser_ws.send_text(json.dumps({"type": "interrupted"}))
         except Exception as exc:
             logger.error("_gemini_to_browser error: %s", exc, exc_info=True)
 

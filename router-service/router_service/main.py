@@ -1,8 +1,12 @@
+import logging
 import os
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from router_service.session_registry import SessionRegistry
+
+logging.basicConfig(level=logging.WARNING, format="%(levelname)s:%(name)s:%(message)s")
+logging.getLogger("router_service").setLevel(logging.DEBUG)
 
 registry = SessionRegistry()
 app = FastAPI()
