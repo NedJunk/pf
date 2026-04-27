@@ -18,7 +18,14 @@ def load_cases():
 
 @pytest.mark.parametrize("case", load_cases(), ids=lambda c: c["id"])
 def test_expert_selection(case, eval_results):
-    result = select_expert(case["context"], REGISTRY)
+    if case["category"] == "overlap":
+        assert case.get("note"), f"{case['id']}: overlap cases require a non-empty 'note' field"
+
+    try:
+        result = select_expert(case["context"], REGISTRY)
+    except NotImplementedError:
+        result = None
+
     eval_results.append({"expected": case["expected_expert"], "actual": result})
     assert result == case["expected_expert"], (
         f"Expected {case['expected_expert']!r}, got {result!r} — {case['description']}"
