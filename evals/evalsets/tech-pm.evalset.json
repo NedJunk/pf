@@ -1,0 +1,81 @@
+[
+  {
+    "id": "tech-001",
+    "description": "Deployment target decision",
+    "category": "clear",
+    "context": {
+      "history_tail": [
+        "User: I keep going back and forth on whether to use Railway or just run this on a VPS.",
+        "Assistant: What's driving the hesitation — cost, control, or something else?",
+        "User: Mostly control. I don't love the idea of being locked into another platform."
+      ],
+      "goals": ["Get the router service deployed somewhere stable"],
+      "project_map": ["voice-first development partner — router service"]
+    },
+    "expected_expert": "TechnicalPM",
+    "note": ""
+  },
+  {
+    "id": "tech-002",
+    "description": "Abstracting the LLM provider",
+    "category": "clear",
+    "context": {
+      "history_tail": [
+        "User: I want to make it possible to swap out Gemini for a local model later.",
+        "Assistant: That's worth doing carefully. Where would you put the abstraction boundary?",
+        "User: I'm thinking somewhere in the router service but I'm not sure if that's the right layer."
+      ],
+      "goals": ["Design a provider abstraction layer for the voice model"],
+      "project_map": ["voice-first development partner — router service"]
+    },
+    "expected_expert": "TechnicalPM",
+    "note": ""
+  },
+  {
+    "id": "tech-003",
+    "description": "Debugging flaky CI tests",
+    "category": "clear",
+    "context": {
+      "history_tail": [
+        "User: The turn handler tests are failing but only in CI, not locally.",
+        "Assistant: That usually means environment differences. What's the error?",
+        "User: It's a timeout — the mock agent isn't responding fast enough in the test environment."
+      ],
+      "goals": ["Fix flaky CI tests in the orchestrator"],
+      "project_map": ["voice-first development partner — orchestrator service"]
+    },
+    "expected_expert": "TechnicalPM",
+    "note": ""
+  },
+  {
+    "id": "tech-004",
+    "description": "Choosing a vector store for knowledge retrieval",
+    "category": "clear",
+    "context": {
+      "history_tail": [
+        "User: I need to pick something for storing and retrieving session knowledge. Chroma, Pinecone, or just SQLite with embeddings?",
+        "Assistant: What's your priority — simplicity, performance, or avoiding cloud dependencies?",
+        "User: Definitely local first. I want it to run without any external services."
+      ],
+      "goals": ["Design the knowledge storage layer"],
+      "project_map": ["voice-first development partner — knowledge layer"]
+    },
+    "expected_expert": "TechnicalPM",
+    "note": ""
+  },
+  {
+    "id": "tech-neg-001",
+    "description": "Opening greeting with no content yet",
+    "category": "negative",
+    "context": {
+      "history_tail": [
+        "User: Hey, let's get started.",
+        "Assistant: Good to hear from you. What are we working on today?"
+      ],
+      "goals": [],
+      "project_map": []
+    },
+    "expected_expert": null,
+    "note": ""
+  }
+]
