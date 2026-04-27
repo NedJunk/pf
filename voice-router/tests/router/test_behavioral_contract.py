@@ -19,3 +19,7 @@ def test_facilitator_prompt_embeds_behavioral_contract():
     assert "facilitation router" in _SYSTEM_PROMPT
     assert "WHISPER from" in _SYSTEM_PROMPT
     assert "{goals}" in _SYSTEM_PROMPT
+
+
+def test_behavioral_contract_includes_session_opener():
+    assert "working on today" in BEHAVIORAL_CONTRACT
