@@ -24,7 +24,8 @@ def test_expert_selection(case, eval_results):
     try:
         result = select_expert(case["context"], REGISTRY)
     except NotImplementedError:
-        result = None
+        eval_results.append({"expected": case["expected_expert"], "actual": "__not_implemented__"})
+        pytest.fail(f"{case['id']}: select_expert raised NotImplementedError — routing not yet implemented")
 
     eval_results.append({"expected": case["expected_expert"], "actual": result})
     assert result == case["expected_expert"], (
