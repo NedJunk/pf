@@ -58,11 +58,6 @@ class LiveSession:
             model=self._live_api_model, config=config
         )
         self._gemini_session = await self._gemini_cm.__aenter__()
-        context = (
-            f"Session context — Goals: {'; '.join(self.goals) or 'None'}. "
-            f"Project map: {'; '.join(self.project_map) or 'None'}."
-        )
-        await self._gemini_session.send_realtime_input(text=context)
 
     async def stream(self, browser_ws: WebSocket) -> None:
         tasks = [

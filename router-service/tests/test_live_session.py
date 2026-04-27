@@ -46,7 +46,7 @@ def _mock_gemini(responses=None):
 
 @pytest.mark.asyncio
 @patch("router_service.live_session.genai")
-async def test_connect_sends_setup_and_initial_context(mock_genai):
+async def test_connect_opens_gemini_session_without_context_injection(mock_genai):
     _, mock_session = _mock_gemini()
     mock_genai.Client.return_value.aio.live.connect.return_value.__aenter__ = (
         AsyncMock(return_value=mock_session)
@@ -62,10 +62,8 @@ async def test_connect_sends_setup_and_initial_context(mock_genai):
     call_kwargs = mock_genai.Client.return_value.aio.live.connect.call_args
     assert call_kwargs.kwargs["model"] == "gemini-test-model"
 
-    # Initial context injected after connect
-    mock_session.send_realtime_input.assert_called_once()
-    ctx_call = mock_session.send_realtime_input.call_args
-    assert "ship MVP" in str(ctx_call) or "auth module" in str(ctx_call)
+    # No context injected at connect — Router asks verbally
+    mock_session.send_realtime_input.assert_not_called()
 
 
 @pytest.mark.asyncio
