@@ -106,33 +106,32 @@ class LiveSession:
             logger.debug("_browser_to_gemini ended: %s", exc)
 
     async def _gemini_to_browser(self, browser_ws: WebSocket) -> None:
-        async for response in self._gemini_session.receive():
-            sc = response.server_content
-            if not sc:
-                continue
-            if sc.model_turn:
-                for part in sc.model_turn.parts:
-                    if part.inline_data:
-                        await browser_ws.send_bytes(
-                            base64.b64decode(part.inline_data.data)
-                        )
-            if sc.input_transcription and sc.input_transcription.text:
-                text = sc.input_transcription.text
-                self._history.append(f"User: {text}")
-                await browser_ws.send_text(
-                    json.dumps({"type": "transcript", "role": "user", "text": text})
-                )
-            if sc.output_transcription and sc.output_transcription.text:
-                text = sc.output_transcription.text
-                self._history.append(f"Assistant: {text}")
-                await browser_ws.send_text(
-                    json.dumps({"type": "transcript", "role": "assistant", "text": text})
-                )
-            if sc.turn_complete:
-                await browser_ws.send_text(json.dumps({"type": "turn_complete"}))
-                await self._post_turn_event()
-            if getattr(sc, "interrupted", False):
-                await browser_ws.send_text(json.dumps({"type": "interrupted"}))
+        try:
+            async for response in self._gemini_session.receive():
+                if response.data:
+                    await browser_ws.send_bytes(response.data)
+                sc = response.server_content
+                if not sc:
+                    continue
+                if sc.input_transcription and sc.input_transcription.text:
+                    text = sc.input_transcription.text
+                    self._history.append(f"User: {text}")
+                    await browser_ws.send_text(
+                        json.dumps({"type": "transcript", "role": "user", "text": text})
+                    )
+                if sc.output_transcription and sc.output_transcription.text:
+                    text = sc.output_transcription.text
+                    self._history.append(f"Assistant: {text}")
+                    await browser_ws.send_text(
+                        json.dumps({"type": "transcript", "role": "assistant", "text": text})
+                    )
+                if sc.turn_complete:
+                    await browser_ws.send_text(json.dumps({"type": "turn_complete"}))
+                    await self._post_turn_event()
+                if getattr(sc, "interrupted", False):
+                    await browser_ws.send_text(json.dumps({"type": "interrupted"}))
+        except Exception as exc:
+            logger.error("_gemini_to_browser error: %s", exc, exc_info=True)
 
     async def _whisper_drain(self, browser_ws: WebSocket) -> None:
         while True:
