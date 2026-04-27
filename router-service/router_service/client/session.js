@@ -63,13 +63,17 @@ async function startSession() {
         setState('speaking');
         playPCM(event.data);
       } else {
-        handleControlFrame(JSON.parse(event.data));
+        try {
+          handleControlFrame(JSON.parse(event.data));
+        } catch (_) {}
       }
     };
 
     ws.onclose = () => {
       stopMic();
-      setState('ended');
+      if (document.getElementById('dot').dataset.state !== 'error') {
+        setState('ended');
+      }
     };
 
     ws.onerror = () => setState('error', 'Connection error');
