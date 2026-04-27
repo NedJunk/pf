@@ -1,0 +1,82 @@
+[
+  {
+    "id": "art-001",
+    "description": "Deciding whether to take an unpaid gig for exposure",
+    "category": "clear",
+    "context": {
+      "history_tail": [
+        "User: A decent venue offered a spot but they're not paying — just exposure.",
+        "Assistant: What's your current situation with paid shows?",
+        "User: I've got two paid gigs this month but this venue has a good crowd for my genre."
+      ],
+      "goals": ["Build a sustainable gigging strategy"],
+      "project_map": ["singer-songwriter career development"]
+    },
+    "expected_expert": "ArtistManager",
+    "note": ""
+  },
+  {
+    "id": "art-002",
+    "description": "Timing a single release around a live show",
+    "category": "clear",
+    "context": {
+      "history_tail": [
+        "User: I'm trying to figure out when to drop the single. I've got a show in six weeks.",
+        "Assistant: Do you want the release to drive attendance or do you want the crowd to already know it?",
+        "User: Ideally both, but if I had to choose I'd want them to know it by the time they show up."
+      ],
+      "goals": ["Release a new single and maximise its impact"],
+      "project_map": ["singer-songwriter career development"]
+    },
+    "expected_expert": "ArtistManager",
+    "note": ""
+  },
+  {
+    "id": "art-003",
+    "description": "Deciding whether to lean into a new sound",
+    "category": "clear",
+    "context": {
+      "history_tail": [
+        "User: The last few songs I've written have a completely different vibe than my existing catalogue.",
+        "Assistant: Different how — production, genre, mood?",
+        "User: More electronic, darker. My current fans expect something more folk-adjacent."
+      ],
+      "goals": ["Define artistic direction for the next project"],
+      "project_map": ["singer-songwriter career development"]
+    },
+    "expected_expert": "ArtistManager",
+    "note": ""
+  },
+  {
+    "id": "art-004",
+    "description": "Building a consistent social media presence between releases",
+    "category": "clear",
+    "context": {
+      "history_tail": [
+        "User: I know I should be posting more but I genuinely don't know what to say when nothing's happening.",
+        "Assistant: What do your most engaged posts tend to be about?",
+        "User: Behind-the-scenes stuff gets way more response than anything polished."
+      ],
+      "goals": ["Grow audience between releases"],
+      "project_map": ["singer-songwriter career development"]
+    },
+    "expected_expert": "ArtistManager",
+    "note": ""
+  },
+  {
+    "id": "art-neg-001",
+    "description": "User acknowledging a point mid-conversation",
+    "category": "negative",
+    "context": {
+      "history_tail": [
+        "Assistant: Releasing before the show gives the audience familiarity, but releasing after lets the live performance create anticipation.",
+        "User: Yeah, that's a good way to think about it.",
+        "Assistant: What's your instinct?"
+      ],
+      "goals": ["Release a new single and maximise its impact"],
+      "project_map": ["singer-songwriter career development"]
+    },
+    "expected_expert": null,
+    "note": ""
+  }
+]
