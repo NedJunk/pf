@@ -5,38 +5,91 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dev Partner</title>
   <style>
-    body { font-family: monospace; max-width: 800px; margin: 40px auto; padding: 0 20px; }
-    #status { font-weight: bold; margin: 12px 0; }
-    #form { display: none; margin: 16px 0; }
-    textarea { width: 100%; height: 80px; margin: 4px 0; font-family: monospace; }
-    #transcript { border: 1px solid #ccc; padding: 12px; height: 400px; overflow-y: auto; white-space: pre-wrap; font-size: 13px; }
-    .user { color: #0055aa; }
-    .assistant { color: #222; }
-    .whisper { color: #888; font-style: italic; }
-    button { margin-right: 8px; padding: 6px 14px; cursor: pointer; }
-    label { font-size: 13px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #111;
+      color: #eee;
+      font-family: monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 16px;
+    }
+    #title {
+      font-size: 10px;
+      color: #444;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+    #dot {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 2px solid #333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      color: #555;
+      transition: border-color 0.3s, box-shadow 0.3s, color 0.3s;
+    }
+    #dot[data-state="listening"] {
+      border-color: #2d5a2d;
+      color: #4caf50;
+      box-shadow: 0 0 20px #1a3a1a;
+    }
+    #dot[data-state="speaking"] {
+      border-color: #1a3a5c;
+      color: #4a9eff;
+      box-shadow: 0 0 20px #0d1f30;
+    }
+    #dot[data-state="error"] {
+      border-color: #5a1a1a;
+      color: #ff4444;
+      box-shadow: 0 0 20px #3a0a0a;
+    }
+    #status-label {
+      font-size: 11px;
+      color: #555;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      text-align: center;
+    }
+    #status-label[data-state="listening"] { color: #4caf50; }
+    #status-label[data-state="speaking"]  { color: #4a9eff; }
+    #status-label[data-state="error"]     { color: #ff4444; }
+    #error-detail {
+      font-size: 9px;
+      color: #a33;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      height: 14px;
+    }
+    button {
+      background: none;
+      font-family: monospace;
+      font-size: 11px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 6px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #start-btn { border: 1px solid #444; color: #888; }
+    #start-btn:hover { border-color: #666; color: #aaa; }
+    #end-btn { border: 1px solid #c00; color: #c44; display: none; }
+    #end-btn:hover { border-color: #f00; color: #f44; }
   </style>
 </head>
 <body>
-  <h2>Dev Partner</h2>
-  <div id="status">Ready</div>
-
-  <div>
-    <button id="startBtn" onclick="showForm()">Start Session</button>
-    <button id="endBtn" onclick="endSession()" disabled>End Session</button>
-    <label><input type="checkbox" id="debugToggle"> Debug (show whispers)</label>
-  </div>
-
-  <div id="form">
-    <label>What are you working on?</label>
-    <textarea id="projectMap" placeholder="e.g. voice-router — extracting behavioral contract"></textarea>
-    <label>What do you want to accomplish today?</label>
-    <textarea id="goals" placeholder="e.g. Extract BEHAVIORAL_CONTRACT, keep all tests green"></textarea>
-    <button onclick="startSession()">Connect</button>
-    <button onclick="cancelForm()">Cancel</button>
-  </div>
-
-  <div id="transcript"></div>
+  <div id="title">Dev Partner</div>
+  <div id="dot" data-state="ready">⬤</div>
+  <div id="status-label" data-state="ready">Ready</div>
+  <div id="error-detail"></div>
+  <button id="start-btn" onclick="startSession()">Start</button>
+  <button id="end-btn" onclick="endSession()">End</button>
 
   <script src="audio.js"></script>
   <script src="session.js"></script>
