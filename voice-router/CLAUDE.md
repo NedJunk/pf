@@ -1,56 +1,33 @@
-# CLAUDE.md
+# CLAUDE.md — voice-router
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This is the **Router Core library** — a Python package, not a runnable service. The runnable service that wraps it is `../router-service/`. The git repo root is one level up (`/Users/dg/Dev/gcsb`).
 
-## Project
+## Role in the System
 
-**Voice-First Development Partner** — a thin Router that facilitates voice capture sessions. The Router is an Active Facilitator: it asks clarifying questions, suggests categories, voices expert "whispers", and never performs deep analysis or code generation. That boundary is a core design constraint, not an implementation detail.
+`voice-router` is the brain of the Router Service. It owns:
+- `BEHAVIORAL_CONTRACT` — the system prompt defining the Router's facilitation style
+- `Facilitator` — wraps Gemini to generate facilitation responses
+- `TranscriptWriter` — writes verbatim session transcripts to disk
+- `Router` — thin facade sequencing facilitate → history → whisper handling
 
-The git repo root is one level up (`/Users/dg/Dev/gcsb`). This `voice-router/` directory is the project root — all commands run from here.
+The **Router Service** (`../router-service/`) wraps this library with a FastAPI app, Gemini Live API session management, and a browser client.
 
 ## Commands
 
 ```bash
-# First-time setup
+# First-time setup (from this directory)
 python -m venv venv
 source venv/bin/activate
 pip install -e ".[dev]"
 
-# Run all tests
+# Run tests
 pytest
 
-# Run a single test file
-pytest tests/router/test_state_store.py -v
-
-# Run a single test
+# Run a specific test
 pytest tests/router/test_router.py::test_whispers_cleared_after_facilitate -v
 ```
 
-## Architecture
-
-Four components with clean separation:
-
-| File | Responsibility |
-|---|---|
-| `src/router/state_store.py` | `RouterState` (projectMap, goals, history, whispers) + `StateStore` + `Whisper` dataclass |
-| `src/router/facilitator.py` | Wraps Gemini 2.0 Flash — builds prompt from state, enforces behavioral contract via system prompt |
-| `src/router/transcript_writer.py` | Writes verbatim markdown session transcripts to disk |
-| `src/router/router.py` | Thin facade: sequences `facilitate()` → records history → clears whispers → delegates to others |
-
-**Whisper lifecycle:** injected via `Router.inject_whisper()` → passed into Gemini prompt on the next `facilitate()` call → cleared from state immediately after. Whispers are consumed once.
-
-**TDD ground truth:** `tests/fixtures/transcripts.py` defines example conversations and `REQUIRED_BEHAVIORS`. The `validates` tags on transcript turns document intended behavior — they assert coverage but do not drive the Router against a live LLM. Integration tests against the real Gemini API are needed to verify runtime behavior.
-
-## Key Constraints (from spec)
+## Key Constraints
 
 - Router must NOT do deep analysis or code generation — it facilitates capture only
 - No tech commitments beyond what's already chosen: Python 3.11+, Gemini 2.0 Flash, pytest
-- Specific audio APIs and server layer are deferred to the next plan (`docs/superpowers/plans/`)
-
-## Known Debt (carry into Server Layer plan)
-
-- `StateStore.get_state()` returns a live mutable reference — not safe for concurrent WebSocket handlers
-- `TranscriptWriter` assumes `output_dir` exists; `Router.__init__` creates it via `os.makedirs`
-- `Facilitator.respond()` returns `response.text` without handling `None` (Gemini safety filter blocks)
-- History sent to Gemini is capped at last 6 entries — configurable window needed for long sessions
-- `Facilitator._MODEL` is a class constant; should be constructor-injectable for the server layer
