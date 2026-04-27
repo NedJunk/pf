@@ -35,6 +35,12 @@
       color: #555;
       transition: border-color 0.3s, box-shadow 0.3s, color 0.3s;
     }
+    #dot[data-state="ready"],
+    #dot[data-state="connecting"],
+    #dot[data-state="ended"] {
+      border-color: #333;
+      color: #555;
+    }
     #dot[data-state="listening"] {
       border-color: #2d5a2d;
       color: #4caf50;
