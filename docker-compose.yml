@@ -1,0 +1,42 @@
+services:
+  router-service:
+    build:
+      context: .
+      dockerfile: router-service/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ORCHESTRATOR_URL=http://orchestrator:8081
+      - LIVE_API_MODEL=${LIVE_API_MODEL:-gemini-2.0-flash-live-001}
+      - HISTORY_TAIL_LENGTH=${HISTORY_TAIL_LENGTH:-10}
+      - TRANSCRIPT_OUTPUT_DIR=/app/transcripts
+    volumes:
+      - ./transcripts:/app/transcripts
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: orchestrator/Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - ROUTER_SERVICE_URL=http://router-service:8080
+      - CONFIDENCE_THRESHOLD=${CONFIDENCE_THRESHOLD:-0.5}
+      - AGENT_TIMEOUT_SECONDS=${AGENT_TIMEOUT_SECONDS:-2}
+    depends_on:
+      dev-coach:
+        condition: service_healthy
+
+  dev-coach:
+    build:
+      context: .
+      dockerfile: expert-agents/dev-coach/Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - DEV_COACH_MODEL=${DEV_COACH_MODEL:-gemini-2.0-flash}

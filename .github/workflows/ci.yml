@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main, feature/mvp-vertical-slice]
+  pull_request:
+    branches: [main]
+
+jobs:
+  voice-router:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e "voice-router/[dev]"
+      - run: pytest voice-router/tests/ -v
+      - run: docker build -f voice-router/Dockerfile -t voice-router-test .
+
+  router-service:
+    runs-on: ubuntu-latest
+    needs: voice-router
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e "voice-router/" -e "router-service/[dev]"
+      - run: pytest router-service/tests/ -v
+      - run: docker build -f router-service/Dockerfile -t router-service .
+
+  orchestrator:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e "orchestrator/[dev]"
+      - run: pytest orchestrator/tests/ -v
+      - run: docker build -f orchestrator/Dockerfile -t orchestrator .
+
+  dev-coach:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e "expert-agents/base/" -e "expert-agents/dev-coach/[dev]"
+      - run: pytest expert-agents/dev-coach/tests/ -v
+      - run: docker build -f expert-agents/dev-coach/Dockerfile -t dev-coach .

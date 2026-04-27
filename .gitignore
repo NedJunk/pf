@@ -1,1 +1,7 @@
 .worktrees/
+.env
+transcripts/*.md
+**/venv/
+**/__pycache__/
+**/*.egg-info/
+
