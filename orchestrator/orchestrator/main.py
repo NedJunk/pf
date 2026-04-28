@@ -4,6 +4,7 @@ from fastapi import FastAPI, HTTPException
 from orchestrator.agent_registry import load_registry
 from orchestrator.health_monitor import HealthMonitor
 from orchestrator.turn_handler import handle_turn
+from orchestrator.session_handler import handle_session_close
 
 _REGISTRY_PATH = os.path.join(os.path.dirname(__file__), "agents.yaml")
 _ROUTER_SERVICE_URL = os.environ.get("ROUTER_SERVICE_URL", "")
@@ -32,6 +33,17 @@ async def receive_turn(body: dict):
         confidence_threshold=_threshold,
         agent_timeout=_timeout,
         router_service_url=_ROUTER_SERVICE_URL,
+    )
+    return {}
+
+
+@app.post("/sessions/{session_id}/close", status_code=200)
+async def receive_session_close(session_id: str, body: dict):
+    await handle_session_close(
+        close_event={"session_id": session_id, "transcript": body["transcript"]},
+        agents=_agents,
+        health_monitor=_monitor,
+        timeout=_timeout,
     )
     return {}
 
