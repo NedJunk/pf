@@ -161,3 +161,67 @@ async def test_close_writes_transcript(mock_genai, tmp_path):
     content = transcript_file.read_text()
     assert "User: hello" in content
     assert "Assistant: hi" in content
+
+
+@pytest.mark.asyncio
+@patch("router_service.live_session.genai")
+@patch("router_service.live_session.httpx")
+async def test_close_notifies_orchestrator_with_transcript(mock_httpx, mock_genai, tmp_path):
+    mock_genai_inst, mock_session = _mock_gemini()
+    mock_genai.Client.return_value = mock_genai_inst.Client.return_value
+
+    posted = []
+
+    async def mock_post(url, **kwargs):
+        posted.append((url, kwargs))
+        resp = MagicMock()
+        resp.status_code = 200
+        return resp
+
+    mock_http_client = AsyncMock()
+    mock_http_client.post = mock_post
+    mock_httpx.AsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_http_client)
+    mock_httpx.AsyncClient.return_value.__aexit__ = AsyncMock(return_value=None)
+
+    session = _session(transcript_output_dir=str(tmp_path))
+    session._gemini_session = mock_session
+    session._gemini_cm = MagicMock()
+    session._gemini_cm.__aexit__ = AsyncMock(return_value=None)
+    session._history = ["User: hello", "Assistant: hi"]
+
+    await session.close()
+
+    session_close_calls = [
+        (url, kw) for url, kw in posted
+        if "sessions" in url and "close" in url
+    ]
+    assert len(session_close_calls) == 1
+    url, kwargs = session_close_calls[0]
+    assert "test-id" in url
+    assert "transcript" in kwargs["json"]
+    assert "User: hello" in kwargs["json"]["transcript"]
+
+
+@pytest.mark.asyncio
+@patch("router_service.live_session.genai")
+@patch("router_service.live_session.httpx")
+async def test_close_succeeds_even_if_orchestrator_unreachable(mock_httpx, mock_genai, tmp_path):
+    mock_genai_inst, mock_session = _mock_gemini()
+    mock_genai.Client.return_value = mock_genai_inst.Client.return_value
+
+    async def mock_post(url, **kwargs):
+        raise Exception("connection refused")
+
+    mock_http_client = AsyncMock()
+    mock_http_client.post = mock_post
+    mock_httpx.AsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_http_client)
+    mock_httpx.AsyncClient.return_value.__aexit__ = AsyncMock(return_value=None)
+
+    session = _session(transcript_output_dir=str(tmp_path))
+    session._gemini_session = mock_session
+    session._gemini_cm = MagicMock()
+    session._gemini_cm.__aexit__ = AsyncMock(return_value=None)
+    session._history = ["User: hello"]
+
+    await session.close()
+    assert (tmp_path / "test-id.md").exists()

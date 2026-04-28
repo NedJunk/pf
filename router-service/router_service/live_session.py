@@ -91,13 +91,31 @@ class LiveSession:
                 pass
             finally:
                 self._gemini_cm = None
+        transcript = ""
         try:
             os.makedirs(self._transcript_output_dir, exist_ok=True)
             TranscriptWriter(self._transcript_output_dir).write_transcript(
                 self.session_id, self._history
             )
+            transcript = "\n".join(self._history)
         except Exception as exc:
             logger.error("Failed to write transcript for session %s: %s", self.session_id, exc)
+        await self._post_session_close(transcript)
+
+    async def _post_session_close(self, transcript: str) -> None:
+        async with httpx.AsyncClient() as client:
+            try:
+                await client.post(
+                    f"{self._orchestrator_url}/sessions/{self.session_id}/close",
+                    json={"transcript": transcript},
+                    timeout=5.0,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to notify orchestrator of session close session=%s: %s",
+                    self.session_id,
+                    exc,
+                )
 
     async def _browser_to_gemini(self, browser_ws: WebSocket) -> None:
         try:
