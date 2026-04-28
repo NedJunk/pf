@@ -5,3 +5,6 @@ __pycache__/
 .pytest_cache/
 dist/
 build/
+wiki/index.md
+wiki/log.md
+wiki/pages/

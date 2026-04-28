@@ -40,3 +40,5 @@ services:
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - DEV_COACH_MODEL=${DEV_COACH_MODEL:-gemini-2.0-flash}
+    volumes:
+      - ./expert-agents/dev-coach/wiki:/app/wiki
