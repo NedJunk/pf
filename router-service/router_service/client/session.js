@@ -1,69 +1,86 @@
 let ws = null;
 let sessionId = null;
 
-function showForm() {
-  document.getElementById('form').style.display = 'block';
-  document.getElementById('startBtn').disabled = true;
-}
+const STATE_LABELS = {
+  ready: 'Ready',
+  connecting: 'Connecting',
+  listening: 'Listening',
+  speaking: 'Speaking',
+  ended: 'Ended',
+  error: 'Error',
+};
 
-function cancelForm() {
-  document.getElementById('form').style.display = 'none';
-  document.getElementById('startBtn').disabled = false;
+function setState(state, errorDetail = '') {
+  const dot = document.getElementById('dot');
+  const label = document.getElementById('status-label');
+  const detail = document.getElementById('error-detail');
+  const startBtn = document.getElementById('start-btn');
+  const endBtn = document.getElementById('end-btn');
+
+  dot.dataset.state = state;
+  dot.textContent = state === 'error' ? '⚠' : '⬤';
+  label.dataset.state = state;
+  label.textContent = STATE_LABELS[state] || state;
+  detail.textContent = errorDetail;
+
+  const inCall = state === 'listening' || state === 'speaking';
+  startBtn.style.display = inCall ? 'none' : 'block';
+  endBtn.style.display = inCall ? 'block' : 'none';
 }
 
 async function startSession() {
-  const projectMap = document.getElementById('projectMap').value.trim();
-  const goals = document.getElementById('goals').value.trim();
-
-  setStatus('Connecting…');
-  document.getElementById('form').style.display = 'none';
-
-  const resp = await fetch('/sessions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      project_map: projectMap ? [projectMap] : [],
-      goals: goals ? [goals] : [],
-    }),
-  });
-  if (!resp.ok) { setStatus(`Error ${resp.status} — could not start session`); return; }
-  const { session_id } = await resp.json();
-  sessionId = session_id;
-
-  ws = new WebSocket(`ws://${location.host}/sessions/${session_id}/audio`);
-  ws.binaryType = 'arraybuffer';
-
-  ws.onopen = async () => {
-    setStatus('Listening');
-    document.getElementById('endBtn').disabled = false;
-    try {
-      await startMic((pcmBuffer) => {
-        if (ws && ws.readyState === WebSocket.OPEN) ws.send(pcmBuffer);
-      });
-    } catch (err) {
-      setStatus(`Mic error: ${err.message || err}`);
-      endSession();
+  setState('connecting');
+  try {
+    const resp = await fetch('/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project_map: [], goals: [] }),
+    });
+    if (!resp.ok) {
+      setState('error', 'Connection error');
+      return;
     }
-  };
+    const { session_id } = await resp.json();
+    sessionId = session_id;
 
-  ws.onmessage = (event) => {
-    if (event.data instanceof ArrayBuffer) {
-      setStatus('Speaking');
-      playPCM(event.data);
-    } else {
-      const msg = JSON.parse(event.data);
-      handleControlFrame(msg);
-    }
-  };
+    ws = new WebSocket(`ws://${location.host}/sessions/${session_id}/audio`);
+    ws.binaryType = 'arraybuffer';
 
-  ws.onclose = () => {
-    stopMic();
-    setStatus('Ended');
-    document.getElementById('endBtn').disabled = true;
-    document.getElementById('startBtn').disabled = false;
-  };
+    ws.onopen = async () => {
+      setState('listening');
+      try {
+        await startMic((pcmBuffer) => {
+          if (ws && ws.readyState === WebSocket.OPEN) ws.send(pcmBuffer);
+        });
+      } catch (err) {
+        setState('error', 'Mic error');
+        endSession();
+      }
+    };
 
-  ws.onerror = () => setStatus('Error — check console');
+    ws.onmessage = (event) => {
+      if (event.data instanceof ArrayBuffer) {
+        setState('speaking');
+        playPCM(event.data);
+      } else {
+        try {
+          handleControlFrame(JSON.parse(event.data));
+        } catch (_) {}
+      }
+    };
+
+    ws.onclose = () => {
+      stopMic();
+      if (document.getElementById('dot').dataset.state !== 'error') {
+        setState('ended');
+      }
+    };
+
+    ws.onerror = () => setState('error', 'Connection error');
+
+  } catch (_) {
+    setState('error', 'Connection error');
+  }
 }
 
 async function endSession() {
@@ -74,50 +91,20 @@ async function endSession() {
   } finally {
     if (ws) ws.close();
     stopMic();
-    setStatus('Ended');
-    document.getElementById('endBtn').disabled = true;
-    document.getElementById('startBtn').disabled = false;
+    setState('ended');
+    sessionId = null;
+    ws = null;
   }
 }
 
 function handleControlFrame(msg) {
   switch (msg.type) {
     case 'turn_complete':
-      setStatus('Listening');
+      setState('listening');
       break;
     case 'interrupted':
       flushPlayback();
-      setStatus('Listening');
-      break;
-    case 'transcript':
-      appendTranscript(msg.role, msg.text);
-      break;
-    case 'whisper':
-      if (document.getElementById('debugToggle').checked) {
-        appendWhisper(msg.source, msg.message);
-      }
+      setState('listening');
       break;
   }
-}
-
-function appendTranscript(role, text) {
-  const div = document.getElementById('transcript');
-  const line = document.createElement('div');
-  line.className = role;
-  line.textContent = `${role === 'user' ? 'You' : 'Dev Partner'}: ${text}`;
-  div.appendChild(line);
-  div.scrollTop = div.scrollHeight;
-}
-
-function appendWhisper(source, message) {
-  const div = document.getElementById('transcript');
-  const line = document.createElement('div');
-  line.className = 'whisper';
-  line.textContent = `[${source} →] ${message}`;
-  div.appendChild(line);
-  div.scrollTop = div.scrollHeight;
-}
-
-function setStatus(text) {
-  document.getElementById('status').textContent = text;
 }
