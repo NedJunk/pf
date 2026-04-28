@@ -98,3 +98,52 @@ def test_health_returns_ok(mock_genai):
     from dev_coach.main import DevCoach
     client = TestClient(DevCoach().app)
     assert client.get("/health").json() == {"status": "ok"}
+
+
+@pytest.fixture(autouse=True)
+def wiki_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("WIKI_DIR", str(tmp_path / "wiki"))
+    monkeypatch.setenv("WIKI_SCHEMA_PATH", str(tmp_path / "schema.md"))
+
+
+@pytest.mark.asyncio
+@patch("dev_coach.main.genai")
+async def test_generate_calls_gemini_with_prompt(mock_genai):
+    mock_resp = MagicMock()
+    mock_resp.text = "result text"
+    mock_client = MagicMock()
+    mock_client.aio.models.generate_content = AsyncMock(return_value=mock_resp)
+    mock_genai.Client.return_value = mock_client
+
+    from dev_coach.main import DevCoach
+    coach = DevCoach()
+    result = await coach._generate("test prompt")
+    assert result == "result text"
+    mock_client.aio.models.generate_content.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+@patch("dev_coach.main.genai")
+async def test_whisper_includes_wiki_context_in_prompt(mock_genai):
+    mock_resp = MagicMock()
+    mock_resp.text = "Consider pair programming."
+    mock_client = MagicMock()
+    mock_client.aio.models.generate_content = AsyncMock(return_value=mock_resp)
+    mock_genai.Client.return_value = mock_client
+
+    from dev_coach.main import DevCoach
+    from expert_agent_base.base import WhisperContext
+    coach = DevCoach()
+    ctx = WhisperContext(
+        session_id="s1",
+        history=["User: Hello", "Assistant: Hi"],
+        goals=["ship MVP"],
+        project_map=["voice-router"],
+        wiki_context="### decisions.md\nWe use TDD.",
+    )
+    result = await coach.whisper(ctx)
+    assert result is not None
+
+    call_args = mock_client.aio.models.generate_content.call_args
+    prompt_text = call_args.kwargs["contents"][0]["parts"][0]["text"]
+    assert "We use TDD" in prompt_text

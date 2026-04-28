@@ -14,7 +14,7 @@ Rules:
 
 Session goals: {goals}
 Project context: {project_map}
-
+{wiki_context}
 Recent conversation:
 {history_tail}
 
@@ -27,22 +27,30 @@ class DevCoach(ExpertAgentBase):
         super().__init__(model=model)
         self._client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
 
-    async def whisper(self, context: WhisperContext) -> WhisperResponse | None:
-        if len(context.history) < 2:
-            return None
-
-        prompt = _PROMPT.format(
-            goals="; ".join(context.goals) or "None",
-            project_map="; ".join(context.project_map) or "None",
-            history_tail="\n".join(context.history),
-        )
-
+    async def _generate(self, prompt: str) -> str:
         response = await self._client.aio.models.generate_content(
             model=self.model,
             contents=[{"role": "user", "parts": [{"text": prompt}]}],
         )
+        return (response.text or "").strip()
 
-        text = (response.text or "").strip()
+    async def whisper(self, context: WhisperContext) -> WhisperResponse | None:
+        if len(context.history) < 2:
+            return None
+
+        wiki_section = (
+            f"\nRelevant wiki context:\n{context.wiki_context}\n"
+            if context.wiki_context
+            else ""
+        )
+        prompt = _PROMPT.format(
+            goals="; ".join(context.goals) or "None",
+            project_map="; ".join(context.project_map) or "None",
+            wiki_context=wiki_section,
+            history_tail="\n".join(context.history),
+        )
+
+        text = await self._generate(prompt)
         if text.startswith("NO_WHISPER"):
             return None
 
