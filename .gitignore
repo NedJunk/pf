@@ -1,4 +1,6 @@
 .worktrees/
+.claude/
+**/.claude/
 .env
 transcripts/*.md
 **/venv/
