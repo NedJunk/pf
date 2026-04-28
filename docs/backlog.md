@@ -32,7 +32,7 @@ Items are ordered by priority within each epic. Security and scalability are exp
 *Protect the ability to run fully locally and avoid deepening platform lock-in.*
 
 - [ ] **SPIKE: evaluate local voice alternatives** — time-boxed research into replacing Gemini Live API with a local model. Primary candidate: [Moshi](https://github.com/kyutai-labs/moshi) (Kyutai real-time speech-to-speech). Also evaluate modular approach (Whisper ASR + local LLM + local TTS). Deliverable: a short written assessment covering capability gap, hardware requirements, integration cost, and recommended abstraction boundary.
-- [ ] **Design: LLM/voice provider abstraction** — informed by the spike; define the interface boundary that lets the voice model be swapped without touching Router or Orchestrator logic
+- [ ] **Design: LLM/voice provider abstraction** — informed by the spike; define the interface boundary that lets the voice model be swapped without touching Router or Orchestrator logic. Note: expert agent wiki design currently names Gemini directly in whisper/ingest prompts — this abstraction should cover the expert agent LLM as well as the realtime voice conversation agent, so neither is hardcoded.
 - [ ] **Build: provider abstraction layer** — implement the boundary so Gemini Live and a local alternative can coexist behind the same interface
 
 ---
