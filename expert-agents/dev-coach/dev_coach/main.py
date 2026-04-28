@@ -14,7 +14,7 @@ Rules:
 
 Session goals: {goals}
 Project context: {project_map}
-{wiki_context}
+{schema_section}{wiki_context}
 Recent conversation:
 {history_tail}
 
@@ -38,6 +38,7 @@ class DevCoach(ExpertAgentBase):
         if len(context.history) < 2:
             return None
 
+        schema_section = f"\nAgent knowledge schema:\n{self._wiki_schema}\n" if self._wiki_schema else ""
         wiki_section = (
             f"\nRelevant wiki context:\n{context.wiki_context}\n"
             if context.wiki_context
@@ -46,6 +47,7 @@ class DevCoach(ExpertAgentBase):
         prompt = _PROMPT.format(
             goals="; ".join(context.goals) or "None",
             project_map="; ".join(context.project_map) or "None",
+            schema_section=schema_section,
             wiki_context=wiki_section,
             history_tail="\n".join(context.history),
         )

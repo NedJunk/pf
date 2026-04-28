@@ -43,7 +43,7 @@ async def _call_ingest(agent: AgentConfig, close_event: dict, timeout: int) -> N
                     resp.status_code,
                     close_event["session_id"],
                 )
-        except asyncio.TimeoutError:
+        except httpx.TimeoutException:
             logger.warning(
                 "Agent %s /ingest timed out session=%s",
                 agent.name,
