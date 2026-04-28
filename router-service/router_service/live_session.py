@@ -41,8 +41,11 @@ class LiveSession:
         self._gemini_session = None
         self._gemini_cm = None
         self._history: list[str] = []
+        self._input_buf: list[str] = []
+        self._output_buf: list[str] = []
         self._whisper_queue: asyncio.Queue = asyncio.Queue()
         self._tasks: list[asyncio.Task] = []
+        self._closed = False
 
     async def connect(self) -> None:
         config = {
@@ -75,11 +78,19 @@ class LiveSession:
         self._whisper_queue.put_nowait({"source": source, "message": message})
 
     async def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
         for task in self._tasks:
             task.cancel()
         await asyncio.gather(*self._tasks, return_exceptions=True)
         if self._gemini_cm:
-            await self._gemini_cm.__aexit__(None, None, None)
+            try:
+                await self._gemini_cm.__aexit__(None, None, None)
+            except RuntimeError:
+                pass
+            finally:
+                self._gemini_cm = None
         try:
             os.makedirs(self._transcript_output_dir, exist_ok=True)
             TranscriptWriter(self._transcript_output_dir).write_transcript(
@@ -114,17 +125,23 @@ class LiveSession:
                         continue
                     if sc.input_transcription and sc.input_transcription.text:
                         text = sc.input_transcription.text
-                        self._history.append(f"User: {text}")
+                        self._input_buf.append(text)
                         await browser_ws.send_text(
                             json.dumps({"type": "transcript", "role": "user", "text": text})
                         )
                     if sc.output_transcription and sc.output_transcription.text:
                         text = sc.output_transcription.text
-                        self._history.append(f"Assistant: {text}")
+                        self._output_buf.append(text)
                         await browser_ws.send_text(
                             json.dumps({"type": "transcript", "role": "assistant", "text": text})
                         )
                     if sc.turn_complete:
+                        if self._input_buf:
+                            self._history.append(f"User: {''.join(self._input_buf)}")
+                            self._input_buf = []
+                        if self._output_buf:
+                            self._history.append(f"Assistant: {''.join(self._output_buf)}")
+                            self._output_buf = []
                         await browser_ws.send_text(json.dumps({"type": "turn_complete"}))
                         await self._post_turn_event()
                     if getattr(sc, "interrupted", False):

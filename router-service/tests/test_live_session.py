@@ -28,6 +28,7 @@ def _mock_gemini(responses=None):
     async def _receive():
         for r in (responses or []):
             yield r
+        await asyncio.get_running_loop().create_future()  # block until cancelled
 
     mock_session.receive = _receive
 
