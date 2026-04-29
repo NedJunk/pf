@@ -91,6 +91,12 @@ class LiveSession:
                 pass
             finally:
                 self._gemini_cm = None
+        if self._input_buf:
+            self._history.append(f"User: {''.join(self._input_buf)}")
+            self._input_buf = []
+        if self._output_buf:
+            self._history.append(f"Assistant: {''.join(self._output_buf)}")
+            self._output_buf = []
         transcript = ""
         try:
             os.makedirs(self._transcript_output_dir, exist_ok=True)
@@ -170,14 +176,17 @@ class LiveSession:
     async def _whisper_drain(self, browser_ws: WebSocket) -> None:
         while True:
             whisper = await self._whisper_queue.get()
-            await browser_ws.send_text(json.dumps({
-                "type": "whisper",
-                "source": whisper["source"],
-                "message": whisper["message"],
-            }))
-            await self._gemini_session.send_realtime_input(
-                text=f"[WHISPER from {whisper['source']}]: {whisper['message']}"
-            )
+            try:
+                await browser_ws.send_text(json.dumps({
+                    "type": "whisper",
+                    "source": whisper["source"],
+                    "message": whisper["message"],
+                }))
+                await self._gemini_session.send_realtime_input(
+                    text=f"[WHISPER from {whisper['source']}]: {whisper['message']}"
+                )
+            except Exception as exc:
+                logger.warning("Failed to inject whisper from %s: %s", whisper["source"], exc)
 
     async def _post_turn_event(self) -> None:
         tail = self._history[-self._history_tail_length:]

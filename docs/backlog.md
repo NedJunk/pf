@@ -8,9 +8,11 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 
 Two items are immediately actionable and independent — they can be worked in parallel.
 
-- [ ] **BUG-01 — orchestrator ↔ dev-coach connectivity errors** — root cause confirmed (session c4822cff, 2026-04-29): both sides logged `[ReadTimeout]` to correct URLs. Fix applied: `/turns` endpoint converted to `BackgroundTasks` (returns 202 immediately, agent calls fire async); `agent_timeout_seconds` raised from 2→15 in `agents.yaml`; `AGENT_TIMEOUT_SECONDS` default raised to 15 in `docker-compose.yml`. Requires `docker compose up --build` to take effect.
+- [ ] **BUG-01 — orchestrator ↔ dev-coach connectivity errors** — partially fixed (2026-04-29). Pipeline is now unblocked: BackgroundTasks fix confirmed working, whispers reaching dev-coach for first time (3× `POST /whisper 204` in live session). However, 2 of 5 turns still produced `Agent DevCoach error [ReadTimeout]` — Gemini API calls inside dev-coach occasionally exceed the 15s ceiling. Root fix is correct; timeout needs further tuning. Whisper-back timeout (orchestrator → router) also raised 2s → 5s (2026-04-29).
 
-  **Done when:** a complete session produces no `Failed to post turn event` or `Agent DevCoach error` log lines, and at least one whisper is delivered to the router.
+  **Remaining work:** raise `agent_timeout_seconds` to 30s (or higher) in `agents.yaml` and `docker-compose.yml`, or add a fast-path in dev-coach that returns low-confidence immediately if generation is slow (prevents blocking the whisper slot). Re-test with a full session.
+
+  **Done when:** a complete session produces no `Agent DevCoach error` log lines, and at least one whisper is delivered to the router.
 
 - [x] **BUG-02 — router refuses to relay context to whisper agents** — fixed (2026-04-29): updated `behavioral_contract.py` to explicitly carve out in-session agent relay as facilitation (not an external action), and added a standing tone directive prohibiting affirmations and ego-bolstering phrases. 30 tests passing.
 
@@ -19,8 +21,9 @@ Two items are immediately actionable and independent — they can be worked in p
 ## Known Bugs
 
 - [x] **BUG-00 — voice interruption broken** — confirmed fixed in session f1f1fdda (2026-04-29).
-- [ ] **BUG-01** — see Now section above.
-- [ ] **BUG-02** — see Now section above.
+- [ ] **BUG-01** — partially fixed; see Now section above.
+- [x] **BUG-02** — see Now section above.
+- [ ] **BUG-03 — httpx client created per call (no connection pooling)** — identified in architecture review (2026-04-29). Five sites open a new `httpx.AsyncClient` on every invocation: `turn_handler._call_agent`, the whisper-back loop in `turn_handler.handle_turn`, `session_handler._call_ingest`, `live_session._post_turn_event`, and `live_session._post_session_close`. Under a 30-turn session this is 30+ connection setups with no reuse. Fix: share a single client (e.g. injected at app startup via FastAPI lifespan, or module-level singleton). Not currently causing visible failures; lower priority than BUG-01.
 
 ---
 
@@ -36,11 +39,13 @@ Two items are immediately actionable and independent — they can be worked in p
 
 - [ ] **E4-B — Build: PM agent core** — implement whisper responses and session context awareness. Agent reads the backlog at startup, listens for bug/feature references during turns, and surfaces relevant items above confidence threshold.
 
+  **Design notes from architecture review (2026-04-29):** (1) `goals` and `project_map` fields exist in every turn event payload but the browser client never populates them — they are always empty. The PM agent will need goals context; either the browser client must be extended to collect goals at session start, or the PM agent reads the backlog directly. (2) Whisper delivery is fire-and-forget with no retry — if the router session closes before a whisper arrives, it 404s silently. Acceptable for MVP but worth noting in the design.
+
 - [ ] **E4-C — Build: PM agent backlog write + bug code resolution** — agent can draft new backlog items from session context and resolve spoken short codes to full entries. Depends on E4-B.
 
 - [ ] **E4-D — Eval: PM agent quality** — labeled test cases for: correct item surfacing, correct item drafting, correct refusal (not surfacing irrelevant items). Feeds into E1 evalset.
 
-- [ ] **E4-E — Design: agent routing improvements** — smarter orchestrator routing beyond broadcast-all; LLM-assisted relevance scoring so agents only receive turns relevant to their domain.
+- [ ] **E4-E — Design: agent routing improvements** — smarter orchestrator routing beyond broadcast-all; LLM-assisted relevance scoring so agents only receive turns relevant to their domain. Pre-work: `orchestrator/orchestrator/routing.py` contains a `select_expert` stub that raises `NotImplementedError` and is never called — the orchestrator currently broadcasts directly in `turn_handler.py`. Wire up or clearly tombstone the stub before building on it.
 
 - [ ] **E4-F — Build: improved routing** — implement the routing design from E4-E.
 

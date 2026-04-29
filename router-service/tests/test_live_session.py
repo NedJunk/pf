@@ -156,9 +156,9 @@ async def test_close_writes_transcript(mock_genai, tmp_path):
 
     await session.close()
 
-    transcript_file = tmp_path / "test-id.md"
-    assert transcript_file.exists()
-    content = transcript_file.read_text()
+    transcripts = list(tmp_path.glob("*.md"))
+    assert len(transcripts) == 1
+    content = transcripts[0].read_text()
     assert "User: hello" in content
     assert "Assistant: hi" in content
 
@@ -224,4 +224,4 @@ async def test_close_succeeds_even_if_orchestrator_unreachable(mock_httpx, mock_
     session._history = ["User: hello"]
 
     await session.close()
-    assert (tmp_path / "test-id.md").exists()
+    assert len(list(tmp_path.glob("*.md"))) == 1

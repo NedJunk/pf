@@ -36,7 +36,7 @@ async def handle_turn(
                 await client.post(
                     f"{router_service_url}/sessions/{session_id}/whisper",
                     json={"source": result["source"], "message": result["message"]},
-                    timeout=2.0,
+                    timeout=5.0,
                 )
             except Exception as exc:
                 logger.warning("Failed to post whisper to router: %s", exc)
