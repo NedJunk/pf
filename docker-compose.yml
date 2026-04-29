@@ -12,8 +12,9 @@ services:
       - HISTORY_TAIL_LENGTH=${HISTORY_TAIL_LENGTH:-10}
       - TRANSCRIPT_OUTPUT_DIR=/app/transcripts
       - BACKLOG_PATH=/app/backlog.md
-      # To enable BUG-07 debug logging: add LOG_LEVEL=DEBUG here (or export before docker compose up)
-      # Logs output_transcription/input_transcription chunks and turn_complete branch+buf state.
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # BUG-07 debug logging: run with LOG_LEVEL=DEBUG to see output_transcription/input_transcription
+      # chunks and turn_complete branch+buf state per session.
     volumes:
       - ./transcripts:/app/transcripts
       - ./docs/backlog.md:/app/backlog.md:ro
