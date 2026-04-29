@@ -67,6 +67,43 @@ async def test_connect_opens_gemini_session_without_context_injection(mock_genai
     mock_session.send_realtime_input.assert_not_called()
 
 
+@patch("router_service.live_session.genai")
+def test_flush_output_buf_creates_new_assistant_entry(mock_genai):
+    session = _session()
+    session._output_buf = ["Hello ", "there"]
+    session._flush_output_buf()
+    assert session._history == ["Assistant: Hello there"]
+    assert session._output_buf == []
+
+
+@patch("router_service.live_session.genai")
+def test_flush_output_buf_coalesces_consecutive_assistant_turns(mock_genai):
+    session = _session()
+    session._history = ["Assistant: Hello there"]
+    session._output_buf = [" how are you"]
+    session._flush_output_buf()
+    assert session._history == ["Assistant: Hello there how are you"]
+    assert session._output_buf == []
+
+
+@patch("router_service.live_session.genai")
+def test_flush_output_buf_does_not_coalesce_after_user_entry(mock_genai):
+    session = _session()
+    session._history = ["User: hi"]
+    session._output_buf = ["Hello there"]
+    session._flush_output_buf()
+    assert session._history == ["User: hi", "Assistant: Hello there"]
+    assert session._output_buf == []
+
+
+@patch("router_service.live_session.genai")
+def test_flush_output_buf_noop_when_empty(mock_genai):
+    session = _session()
+    session._history = ["User: hi"]
+    session._flush_output_buf()
+    assert session._history == ["User: hi"]
+
+
 @pytest.mark.asyncio
 @patch("router_service.live_session.genai")
 async def test_connect_appends_backlog_to_system_instruction(mock_genai, tmp_path):

@@ -92,6 +92,19 @@ class LiveSession:
     def inject_whisper(self, source: str, message: str) -> None:
         self._whisper_queue.put_nowait({"source": source, "message": message})
 
+    def _flush_output_buf(self) -> None:
+        if not self._output_buf:
+            return
+        text = "".join(self._output_buf)
+        self._output_buf = []
+        # Coalesce consecutive model turns into one history entry so that Gemini
+        # streaming multiple short audio turns for one logical response doesn't
+        # produce multiple fragmented "Assistant:" lines in the transcript.
+        if self._history and self._history[-1].startswith("Assistant:"):
+            self._history[-1] += text
+        else:
+            self._history.append(f"Assistant: {text}")
+
     async def close(self) -> None:
         if self._closed:
             return
@@ -107,11 +120,10 @@ class LiveSession:
             finally:
                 self._gemini_cm = None
         if self._input_buf:
+            self._flush_output_buf()
             self._history.append(f"User: {''.join(self._input_buf)}")
             self._input_buf = []
-        if self._output_buf:
-            self._history.append(f"Assistant: {''.join(self._output_buf)}")
-            self._output_buf = []
+        self._flush_output_buf()
         transcript = ""
         try:
             os.makedirs(self._transcript_output_dir, exist_ok=True)
@@ -176,11 +188,11 @@ class LiveSession:
                         )
                     if sc.turn_complete:
                         if self._input_buf:
+                            self._flush_output_buf()
                             self._history.append(f"User: {''.join(self._input_buf)}")
                             self._input_buf = []
-                        if self._output_buf:
-                            self._history.append(f"Assistant: {''.join(self._output_buf)}")
-                            self._output_buf = []
+                        else:
+                            self._flush_output_buf()
                         await browser_ws.send_text(json.dumps({"type": "turn_complete"}))
                         await self._post_turn_event()
                     if getattr(sc, "interrupted", False):
