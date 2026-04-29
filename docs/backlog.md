@@ -27,6 +27,12 @@ Three items are immediately actionable. BUG-01 is a one-liner; close it first. E
 - [x] **BUG-02 — router refuses to relay context to whisper agents** — fixed (2026-04-29): updated `behavioral_contract.py` to carve out in-session agent relay as facilitation and added tone directive prohibiting affirmations. 30 tests passing.
 - [ ] **BUG-03 — httpx client created per call (no connection pooling)** — identified in architecture review (2026-04-29). Five sites open a new `httpx.AsyncClient` on every invocation: `turn_handler._call_agent`, the whisper-back loop in `turn_handler.handle_turn`, `session_handler._call_ingest`, `live_session._post_turn_event`, and `live_session._post_session_close`. Under a 30-turn session this is 30+ connection setups with no reuse. Fix: share a single client (e.g. injected at app startup via FastAPI lifespan, or module-level singleton). Not currently causing visible failures; lower priority than BUG-01.
 
+- [ ] **BUG-04 — router locks onto initial conversational frame** — observed in session 7e9bc99b (2026-04-29): user mentioned "smoke test" in turn 2; router anchored on a usability-testing/categorization frame for the entire session and did not release it when the user explicitly signalled a reframe ("we will have your role adopt something more of a flexible nature"). Behavioral contract has no rule about releasing imposed frames. Fix: add a directive to follow the user's conversational register rather than persist with a framing the router introduced.
+
+- [ ] **BUG-05 — router produces unsolicited session summaries** — observed in session 7e9bc99b (2026-04-29): router delivered an unprompted structured summary ("Summary: The session began with…") as a closing turn. Summarizing is outside the facilitation role — the router should prompt or stay silent, not synthesize. Behavioral contract has no explicit prohibition. Fix: add a rule prohibiting summaries; router's only closing move should be a question or a brief acknowledgement.
+
+- [ ] **BUG-02 verification needed** — BUG-02 fix (tone prohibition) was committed at 05:55 on 2026-04-29 but session 7e9bc99b ran at 12:40 and still contains affirmations ("that's an excellent question", "that's a great question"). The fix requires a container rebuild to take effect — the session may have run against the old image. Confirm BUG-02 is active by verifying the running container was built after the fix commit, or by running a short session and checking for absence of affirmations.
+
 ---
 
 ## Epic 4 — Expert Ecosystem
