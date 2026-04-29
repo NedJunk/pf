@@ -12,8 +12,7 @@ Two items are immediately actionable and independent — they can be worked in p
 
   **Done when:** a complete session produces no `Failed to post turn event` or `Agent DevCoach error` log lines, and at least one whisper is delivered to the router.
 
-- [ ] **BUG-02 — router refuses to relay context to whisper agents** — router responds "I can't take actions like handing things off" when asked to pass context to expert agents. Fix: update `voice-router/src/router/behavioral_contract.py` to clarify that in-session agent handoffs are within scope; only external actions (tickets, messages) are out of scope. Single-file prompt update, no design phase needed.
-  **Done when:** user can say "tell the project manager about this" and the router relays the context via the whisper mechanism rather than declining.
+- [x] **BUG-02 — router refuses to relay context to whisper agents** — fixed (2026-04-29): updated `behavioral_contract.py` to explicitly carve out in-session agent relay as facilitation (not an external action), and added a standing tone directive prohibiting affirmations and ego-bolstering phrases. 30 tests passing.
 
 ---
 

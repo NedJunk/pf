@@ -23,3 +23,11 @@ def test_facilitator_prompt_embeds_behavioral_contract():
 
 def test_behavioral_contract_includes_session_opener():
     assert "working on today" in BEHAVIORAL_CONTRACT
+
+
+def test_behavioral_contract_permits_in_session_relay():
+    assert "In-session agent relay is NOT an external action" in BEHAVIORAL_CONTRACT
+
+
+def test_behavioral_contract_prohibits_affirmations():
+    assert "ego-bolstering" in BEHAVIORAL_CONTRACT
