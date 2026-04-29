@@ -6,11 +6,7 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 
 ## Now
 
-One item is immediately actionable.
-
-- [x] **BUG-04/05/06 — behavioral contract gaps** — fixed (2026-04-29, commit 743db2b). Conditional opener confirmed working in session 8d775b26: router acknowledged user-supplied context and asked a clarifying question rather than firing the stock phrase. Whisper deflection confirmed: "I will work with whatever context arrives in the session." BUG-05 residue still present at close — see BUG-07 note below; may resolve when stutter is fixed.
-
-- [x] **BUG-07 — fix fragmented assistant turns** — fixed (2026-04-29, commit efd7aac). Root cause: Gemini Live API emits multiple consecutive `turn_complete` events for one logical response; each flush created a new `"Assistant:"` history entry. Fix: `_flush_output_buf()` coalesces into any trailing `"Assistant:"` entry instead of always appending. Also fixes identical-duplicate case from session c20adebf. Re-evaluate BUG-05 residue in next live session.
+- [ ] **E6-G — Build: `/session-review` shorthand skill** — promoted above E4-A design. 30-minute build, delivers immediate per-session value. See E6 epic for spec.
 
 - [ ] **E4-A — Design: PM agent** — define whisper contract, backlog integration spec, and evaluation criteria. Scope: backlog-aware, surfaces relevant open items during sessions, drafts and files new items on request, resolves spoken bug codes (e.g. "BUG-01") to full entries. Absorbs E6-B (easy bug referencing) — that feature is delivered by this agent, not a standalone tool.
 
@@ -27,7 +23,7 @@ One item is immediately actionable.
 - [x] **BUG-00 — voice interruption broken** — confirmed fixed in session f1f1fdda (2026-04-29).
 - [x] **BUG-01** — **fixed** (2026-04-29, session c20adebf): async callback pattern eliminated all timeouts. 11 turns, zero `ReadTimeout` errors, 7 of 10 whispers delivered. Two late callbacks arrived post-close (404) — expected behavior of async pattern. See commit f3a1dbf.
 - [x] **BUG-02 — router refuses to relay context to whisper agents** — fixed (2026-04-29): updated `behavioral_contract.py` to carve out in-session agent relay as facilitation and added tone directive prohibiting affirmations. 30 tests passing.
-- [ ] **BUG-03 — httpx client created per call (no connection pooling)** — identified in architecture review (2026-04-29). Five sites open a new `httpx.AsyncClient` on every invocation: `turn_handler._call_agent`, the whisper-back loop in `turn_handler.handle_turn`, `session_handler._call_ingest`, `live_session._post_turn_event`, and `live_session._post_session_close`. Under a 30-turn session this is 30+ connection setups with no reuse. Fix: share a single client (e.g. injected at app startup via FastAPI lifespan, or module-level singleton). Not currently causing visible failures; lower priority than BUG-01.
+- [ ] **BUG-03 — httpx client created per call (no connection pooling)** — identified in architecture review (2026-04-29). Five sites: `turn_handler._call_agent`, whisper-back loop in `turn_handler.handle_turn`, `session_handler._call_ingest`, `live_session._post_turn_event`, `live_session._post_session_close`. Fix is mechanical — share a single client via FastAPI lifespan. Not causing visible failures. **Explicitly deferred** — schedule as a warmup task when other Now items are clear; do not let it accumulate further.
 
 - [x] **BUG-04 — router stock opener ignores user-supplied context** — confirmed fixed in session 8d775b26 (2026-04-29). Originally confirmed in session 0185cc4f (2026-04-29): user opened with a complete context statement ("I'm doing some exploratory user testing right now. You're participating."); router fired the mandatory opener anyway. User called it out: "That seems like a stock starting phrase." Also observed in session 7e9bc99b (frame lock after opener). Fix: conditional opener — if the user's first turn already establishes context, acknowledge it and ask a clarifying question rather than defaulting to the standard opener. Behavioral contract change required.
 
@@ -37,7 +33,7 @@ One item is immediately actionable.
 
 - [x] **BUG-02 verification** — confirmed active in session 0185cc4f (2026-04-29, 13:23): no affirmations present. Affirmations in session 7e9bc99b (12:40) were pre-rebuild. Closed.
 
-- [ ] **BUG-07 — duplicate/fragmented assistant turns in transcript** — first observed in session c20adebf (2026-04-29): two consecutive identical `A:` lines. Confirmed and escalated in session 8d775b26 (2026-04-29): router produced three consecutive close-sequence turns, each a fragment of a single thought ("Are there any outstanding questions..." / "or tasks you'd like to address before concluding?" / "before concluding?"). Pattern suggests Gemini is streaming partial audio turns that each trigger a `turn_complete` event, or that `_gemini_to_browser` flushes the output buffer incrementally without coalescing. **Priority elevated** — this is amplifying BUG-05 and producing degraded voice UX. Investigate `_gemini_to_browser` in `live_session.py`.
+- [x] **BUG-07 — duplicate/fragmented assistant turns in transcript** — fixed (2026-04-29, commit efd7aac). Root cause: Gemini Live API emits multiple consecutive `turn_complete` events per logical response. Fix: `_flush_output_buf()` coalesces into any trailing `"Assistant:"` entry. Re-evaluate BUG-05 residue in next live session.
 
 - [ ] **BUG-08 — router persona has no human name** — flagged in session c20adebf (2026-04-29): user noted "router" is confusing for the conversational agent they're speaking with. *"I think of this router as the individual agent with whom I'm speaking right now... it should be named after some function of a person rather than some piece of hardware."* Requires a terminology audit across the codebase and a rename proposal for the router's voice persona. Separate from the service name (Router Service stays); this is about what the voice agent calls itself and how it is referred to in docs and the behavioral contract.
 

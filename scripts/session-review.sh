@@ -11,7 +11,7 @@
 set -euo pipefail
 
 TRANSCRIPTS_DIR="$(cd "$(dirname "$0")/.." && pwd)/transcripts"
-LOG_LINES=80
+LOG_LINES=${LOG_LINES:-200}
 
 # ── resolve transcript ────────────────────────────────────────────────────────
 if [[ $# -eq 0 ]]; then
