@@ -244,9 +244,13 @@ async def test_whisper_drain_sends_control_frame_then_injects_to_gemini(mock_gen
     assert whisper_frames[0]["source"] == "DevCoach"
     assert whisper_frames[0]["message"] == "try TDD"
 
-    gemini_calls = str(mock_session.send_realtime_input.call_args_list)
-    assert "[WHISPER from DevCoach]" in gemini_calls
-    assert "try TDD" in gemini_calls
+    # Whisper must use send_client_content(turn_complete=False), not
+    # send_realtime_input(text=...) — the latter triggers a Gemini audio
+    # response (BUG-10). See _whisper_drain comment for full decision record.
+    mock_session.send_realtime_input.assert_not_called()
+    client_content_calls = str(mock_session.send_client_content.call_args_list)
+    assert "[WHISPER from DevCoach]" in client_content_calls
+    assert "try TDD" in client_content_calls
 
     assert any("[Whisper from DevCoach]: try TDD" in entry for entry in session._history)
 

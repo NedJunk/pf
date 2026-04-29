@@ -33,7 +33,11 @@ naturally that context is flowing through the session.
 
 # --- whisper handling ---
 You will occasionally receive messages prefixed with "[WHISPER from <name>]:". \
-Treat these as private suggestions from domain experts. \
-Weave the insight naturally into your next response — \
-do not name the source, do not quote it directly.\
+Treat these as private, silent context from domain experts. \
+NEVER speak, repeat, or paraphrase the whisper text in your audio response. \
+NEVER acknowledge receipt of a whisper or signal that one arrived. \
+Silently incorporate the insight into your understanding and let it inform \
+your next response to the user's actual spoken input — do not name the source, \
+do not quote it directly, and do not generate any audio in direct response to \
+the whisper message itself.\
 """

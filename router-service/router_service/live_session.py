@@ -234,8 +234,35 @@ class LiveSession:
                     "source": whisper["source"],
                     "message": whisper["message"],
                 }))
-                await self._gemini_session.send_realtime_input(
-                    text=f"[WHISPER from {whisper['source']}]: {whisper['message']}"
+                # Inject whisper as silent context via send_client_content(turn_complete=False).
+                #
+                # WHY NOT send_realtime_input(text=...):
+                #   That channel is the VAD user-turn channel. Gemini treats any text sent
+                #   there as a user utterance and immediately generates an audio response —
+                #   causing the router to vocalize the whisper content aloud (BUG-10).
+                #
+                # WHY send_client_content(turn_complete=False):
+                #   turn_complete=False tells Gemini to accumulate the content without
+                #   responding. It will incorporate the whisper context when it next
+                #   responds to the user's actual audio input. This is the closest
+                #   purpose-built mechanism in the SDK for silent context injection.
+                #
+                # KNOWN RISK — SDK interleaving caution (live.py line 188):
+                #   "Interleaving send_client_content and send_realtime_input in the same
+                #   conversation is not recommended and can lead to unexpected results."
+                #   We are deliberately doing this. The "unexpected results" language likely
+                #   refers to message ordering, not crashes. Behavior under concurrent VAD
+                #   was validated in testing (see BUG-10 in backlog). If this proves
+                #   unstable, the fallback is Option B: buffer whispers and prepend to the
+                #   next user turn at the orchestrator boundary.
+                await self._gemini_session.send_client_content(
+                    turns=types.Content(
+                        role="user",
+                        parts=[types.Part(
+                            text=f"[WHISPER from {whisper['source']}]: {whisper['message']}"
+                        )],
+                    ),
+                    turn_complete=False,
                 )
                 self._history.append(
                     f"[Whisper from {whisper['source']}]: {whisper['message']}"
