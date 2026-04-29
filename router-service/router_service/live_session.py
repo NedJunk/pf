@@ -97,11 +97,14 @@ class LiveSession:
             return
         text = "".join(self._output_buf)
         self._output_buf = []
-        # Coalesce consecutive model turns into one history entry so that Gemini
-        # streaming multiple short audio turns for one logical response doesn't
-        # produce multiple fragmented "Assistant:" lines in the transcript.
-        if self._history and self._history[-1].startswith("Assistant:"):
-            self._history[-1] = self._history[-1].rstrip() + " " + text.lstrip()
+        # Coalesce consecutive model turns into one history entry. Scan backward
+        # past any [Whisper from ...] entries — a whisper delivered between two
+        # consecutive assistant turn_completes must not break coalescing.
+        idx = len(self._history) - 1
+        while idx >= 0 and self._history[idx].startswith("[Whisper"):
+            idx -= 1
+        if idx >= 0 and self._history[idx].startswith("Assistant:"):
+            self._history[idx] = self._history[idx].rstrip() + " " + text.lstrip()
         else:
             self._history.append(f"Assistant: {text}")
 

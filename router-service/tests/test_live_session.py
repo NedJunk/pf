@@ -98,6 +98,23 @@ def test_flush_output_buf_inserts_space_between_coalesced_chunks(mock_genai):
 
 
 @patch("router_service.live_session.genai")
+def test_flush_output_buf_coalesces_past_whisper_entries(mock_genai):
+    # Reproduces BUG-07: _whisper_drain appends a [Whisper from ...] entry
+    # between two consecutive assistant turn_completes. The second flush must
+    # still coalesce into the earlier Assistant: entry, not start a new one.
+    session = _session()
+    session._history = [
+        "Assistant: under investigation.",
+        "[Whisper from DevCoach]: have you tried restarting?",
+    ]
+    session._output_buf = ["Are you creating a test plan?"]
+    session._flush_output_buf()
+    assert len(session._history) == 2
+    assert session._history[0] == "Assistant: under investigation. Are you creating a test plan?"
+    assert session._history[1].startswith("[Whisper from DevCoach]")
+
+
+@patch("router_service.live_session.genai")
 def test_flush_output_buf_does_not_coalesce_after_user_entry(mock_genai):
     session = _session()
     session._history = ["User: hi"]
