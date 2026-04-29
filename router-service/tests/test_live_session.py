@@ -87,6 +87,17 @@ def test_flush_output_buf_coalesces_consecutive_assistant_turns(mock_genai):
 
 
 @patch("router_service.live_session.genai")
+def test_flush_output_buf_inserts_space_between_coalesced_chunks(mock_genai):
+    # Reproduces the run-on pattern from session 15383d0b where consecutive
+    # flushes produced "...Epic 3B.Are there any..." with no separator.
+    session = _session()
+    session._history = ["Assistant: First thought."]
+    session._output_buf = ["Second thought."]
+    session._flush_output_buf()
+    assert session._history == ["Assistant: First thought. Second thought."]
+
+
+@patch("router_service.live_session.genai")
 def test_flush_output_buf_does_not_coalesce_after_user_entry(mock_genai):
     session = _session()
     session._history = ["User: hi"]
@@ -219,6 +230,8 @@ async def test_whisper_drain_sends_control_frame_then_injects_to_gemini(mock_gen
     gemini_calls = str(mock_session.send_realtime_input.call_args_list)
     assert "[WHISPER from DevCoach]" in gemini_calls
     assert "try TDD" in gemini_calls
+
+    assert any("[Whisper from DevCoach]: try TDD" in entry for entry in session._history)
 
 
 @pytest.mark.asyncio

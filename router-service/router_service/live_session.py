@@ -101,7 +101,7 @@ class LiveSession:
         # streaming multiple short audio turns for one logical response doesn't
         # produce multiple fragmented "Assistant:" lines in the transcript.
         if self._history and self._history[-1].startswith("Assistant:"):
-            self._history[-1] += text
+            self._history[-1] = self._history[-1].rstrip() + " " + text.lstrip()
         else:
             self._history.append(f"Assistant: {text}")
 
@@ -177,16 +177,34 @@ class LiveSession:
                     if sc.input_transcription and sc.input_transcription.text:
                         text = sc.input_transcription.text
                         self._input_buf.append(text)
+                        logger.debug(
+                            "[%s] input_transcription chunk #%d: %r",
+                            self.session_id, len(self._input_buf), text,
+                        )
                         await browser_ws.send_text(
                             json.dumps({"type": "transcript", "role": "user", "text": text})
                         )
                     if sc.output_transcription and sc.output_transcription.text:
                         text = sc.output_transcription.text
                         self._output_buf.append(text)
+                        logger.debug(
+                            "[%s] output_transcription chunk #%d: %r",
+                            self.session_id, len(self._output_buf), text,
+                        )
                         await browser_ws.send_text(
                             json.dumps({"type": "transcript", "role": "assistant", "text": text})
                         )
                     if sc.turn_complete:
+                        # BUG-07 diagnostic: if branch=user and output_buf is non-empty,
+                        # late-arriving assistant transcription is being grouped into the
+                        # next assistant turn — the suspected root cause of mid-sentence starts.
+                        logger.debug(
+                            "[%s] turn_complete: branch=%s input_buf=%d chunks output_buf=%d chunks",
+                            self.session_id,
+                            "user" if self._input_buf else "assistant",
+                            len(self._input_buf),
+                            len(self._output_buf),
+                        )
                         if self._input_buf:
                             self._flush_output_buf()
                             self._history.append(f"User: {''.join(self._input_buf)}")
@@ -196,6 +214,10 @@ class LiveSession:
                         await browser_ws.send_text(json.dumps({"type": "turn_complete"}))
                         await self._post_turn_event()
                     if getattr(sc, "interrupted", False):
+                        logger.debug(
+                            "[%s] interrupted: output_buf has %d chunks at interrupt",
+                            self.session_id, len(self._output_buf),
+                        )
                         await browser_ws.send_text(json.dumps({"type": "interrupted"}))
         except Exception as exc:
             logger.error("_gemini_to_browser error: %s", exc, exc_info=True)
@@ -211,6 +233,9 @@ class LiveSession:
                 }))
                 await self._gemini_session.send_realtime_input(
                     text=f"[WHISPER from {whisper['source']}]: {whisper['message']}"
+                )
+                self._history.append(
+                    f"[Whisper from {whisper['source']}]: {whisper['message']}"
                 )
             except Exception as exc:
                 logger.warning("Failed to inject whisper from %s: %s", whisper["source"], exc)
