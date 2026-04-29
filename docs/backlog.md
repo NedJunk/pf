@@ -6,23 +6,25 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 
 ## Now
 
-Two items are immediately actionable and independent — they can be worked in parallel.
+Three items are immediately actionable. BUG-01 is a one-liner; close it first. E4-A is the highest-value next feature.
 
-- [ ] **BUG-01 — orchestrator ↔ dev-coach connectivity errors** — partially fixed (2026-04-29). Pipeline is now unblocked: BackgroundTasks fix confirmed working, whispers reaching dev-coach for first time (3× `POST /whisper 204` in live session). However, 2 of 5 turns still produced `Agent DevCoach error [ReadTimeout]` — Gemini API calls inside dev-coach occasionally exceed the 15s ceiling. Root fix is correct; timeout needs further tuning. Whisper-back timeout (orchestrator → router) also raised 2s → 5s (2026-04-29).
-
-  **Remaining work:** raise `agent_timeout_seconds` to 30s (or higher) in `agents.yaml` and `docker-compose.yml`, or add a fast-path in dev-coach that returns low-confidence immediately if generation is slow (prevents blocking the whisper slot). Re-test with a full session.
+- [ ] **BUG-01 — orchestrator ↔ dev-coach connectivity errors** — one fix remaining (2026-04-29): raise `agent_timeout_seconds` from 15 → 30 in `agents.yaml` and the `docker-compose.yml` default, then `docker compose up --build` and verify a clean session. Pipeline is otherwise unblocked — whispers are reaching dev-coach. Whisper-back timeout already raised 2s → 5s.
 
   **Done when:** a complete session produces no `Agent DevCoach error` log lines, and at least one whisper is delivered to the router.
 
-- [x] **BUG-02 — router refuses to relay context to whisper agents** — fixed (2026-04-29): updated `behavioral_contract.py` to explicitly carve out in-session agent relay as facilitation (not an external action), and added a standing tone directive prohibiting affirmations and ego-bolstering phrases. 30 tests passing.
+- [ ] **E4-A — Design: PM agent** — define whisper contract, backlog integration spec, and evaluation criteria. Scope: backlog-aware, surfaces relevant open items during sessions, drafts and files new items on request, resolves spoken bug codes (e.g. "BUG-01") to full entries. Absorbs E6-B (easy bug referencing) — that feature is delivered by this agent, not a standalone tool.
+
+  **Urgency confirmed** (session c4822cff, 2026-04-29): user ended session early because the router lacked backlog context. This is a productivity blocker, not a UX improvement.
+
+  **Open design question (session c4822cff):** real-time injection (agent whispers on every relevant turn) vs. summary-based approach (backlog digest injected at session start). Tradeoffs: real-time has higher latency cost per turn; summary-based risks stale context mid-session. Note: a summary-based approach bypasses the whisper timeout problem (BUG-01 tail) for this agent entirely.
 
 ---
 
 ## Known Bugs
 
 - [x] **BUG-00 — voice interruption broken** — confirmed fixed in session f1f1fdda (2026-04-29).
-- [ ] **BUG-01** — partially fixed; see Now section above.
-- [x] **BUG-02** — see Now section above.
+- [ ] **BUG-01** — one fix remaining; see Now section above.
+- [x] **BUG-02 — router refuses to relay context to whisper agents** — fixed (2026-04-29): updated `behavioral_contract.py` to carve out in-session agent relay as facilitation and added tone directive prohibiting affirmations. 30 tests passing.
 - [ ] **BUG-03 — httpx client created per call (no connection pooling)** — identified in architecture review (2026-04-29). Five sites open a new `httpx.AsyncClient` on every invocation: `turn_handler._call_agent`, the whisper-back loop in `turn_handler.handle_turn`, `session_handler._call_ingest`, `live_session._post_turn_event`, and `live_session._post_session_close`. Under a 30-turn session this is 30+ connection setups with no reuse. Fix: share a single client (e.g. injected at app startup via FastAPI lifespan, or module-level singleton). Not currently causing visible failures; lower priority than BUG-01.
 
 ---
@@ -31,11 +33,7 @@ Two items are immediately actionable and independent — they can be worked in p
 
 *More agents means more value. The PM agent is the highest-priority second agent based on three sessions of observed user friction. Each agent should be independently deployable and testable.*
 
-- [ ] **E4-A — Design: PM agent** — define whisper contract, backlog integration spec, and evaluation criteria. Scope: backlog-aware, surfaces relevant open items during sessions, drafts and files new items on request, resolves spoken bug codes (e.g. "BUG-01") to full entries. Absorbs E6-B (easy bug referencing) — that feature is delivered by this agent, not a standalone tool.
-
-  **Urgency confirmed** (session c4822cff, 2026-04-29): user ended session early because the router lacked backlog context. This is a productivity blocker, not a UX improvement.
-
-  **Open design question (session c4822cff):** real-time injection (agent whispers on every relevant turn) vs. summary-based approach (backlog digest injected at session start). Tradeoffs: real-time has higher latency cost per turn; summary-based risks stale context mid-session.
+- [ ] **E4-A** — in Now section above.
 
 - [ ] **E4-B — Build: PM agent core** — implement whisper responses and session context awareness. Agent reads the backlog at startup, listens for bug/feature references during turns, and surfaces relevant items above confidence threshold.
 
@@ -104,7 +102,11 @@ Note: the transcript labeling workflow (E1-C below) was previously blocked by UU
 
 *Tooling for the developers building and debugging the system itself. Not user-facing features.*
 
-- [ ] **E6-A — Skill + scripts: Gemini model availability lookup** — Note: `docker-compose.yml` still defaults `DEV_COACH_MODEL=gemini-2.0-flash`; user is overriding via env. Default should be updated to the current working model string once confirmed. — Claude's training knowledge of available Gemini model strings goes stale between releases. A lightweight skill + companion script should let Claude verify current model names before using them, without loading full API documentation. Script should call the Gemini models list endpoint and cache the result to a local file to minimise token cost on repeated use. Skill instructs Claude to run the script and check the cache before specifying any model string.
+- [ ] **E6-A — Skill + scripts: Gemini model availability lookup** — `docker-compose.yml` still defaults `DEV_COACH_MODEL=gemini-2.0-flash`; user is overriding via env. Default should be updated to the current working model string once confirmed. Claude's training knowledge of available Gemini model strings goes stale between releases. A lightweight skill + companion script should let Claude verify current model names before using them, without loading full API documentation. Script should call the Gemini models list endpoint and cache the result to a local file to minimise token cost on repeated use. Skill instructs Claude to run the script and check the cache before specifying any model string.
+
+- [ ] **E6-F — Workflow: C4 diagram maintenance** — C4 diagrams (L1 context, L2 containers, L3 router service, L3 expert agent base) live in `docs/architecture/c4-diagrams.md`. Update them whenever a new service, container, or major component is added or removed. Trigger: any commit that touches `docker-compose.yml`, adds a new service directory, or significantly restructures an existing container's internals.
+
+  **Open design question:** current diagrams use Mermaid's C4-specific syntax (`C4Context`, `C4Container`, `C4Component`) which requires Mermaid v9.4+ with C4 plugin support — not rendered by GitHub or standard VS Code Markdown preview. Two options: (a) rewrite as standard `flowchart` diagrams using subgraphs/node shapes to approximate C4 style — renders everywhere, loses strict C4 formalism; (b) keep C4 syntax and adopt a C4-aware renderer (e.g. Structurizr DSL or a VS Code C4/Mermaid plugin). Resolve before next diagram update.
 
 - [ ] **E6-D — Feature: Router agent skill awareness** — the Router has no awareness of what tools and skills are available to Claude Code in the current session. User noted in session b9a16813 (2026-04-29) that the Router should be able to surface or reference newly added skills (e.g. `pm-skills`, `product-skills`) during a session. Design question: is this a behavioral contract addition, a session-start context injection, or a whisper from a meta-agent?
 
@@ -115,10 +117,6 @@ Note: the transcript labeling workflow (E1-C below) was previously blocked by UU
 - [ ] **E6-C2 — Build: debug mode activation + logging** — implement passphrase detection and verbose logging mode. No agent swap yet — this delivers the logging half independently.
 
 - [ ] **E6-C3 — Build: debug agent** — implement the debug-aware agent loaded on passphrase activation, informed by the E6-C1 design. Depends on E6-C2.
-
-- [ ] **E6-F — Workflow: C4 diagram maintenance** — C4 diagrams (L1 context, L2 containers, L3 router service, L3 expert agent base) live in `docs/architecture/c4-diagrams.md`. Update them whenever a new service, container, or major component is added or removed. Trigger: any commit that touches `docker-compose.yml`, adds a new service directory, or significantly restructures an existing container's internals.
-
-  **Open design question:** current diagrams use Mermaid's C4-specific syntax (`C4Context`, `C4Container`, `C4Component`) which requires Mermaid v9.4+ with C4 plugin support — not rendered by GitHub or standard VS Code Markdown preview. Two options: (a) rewrite as standard `flowchart` diagrams using subgraphs/node shapes to approximate C4 style — renders everywhere, loses strict C4 formalism; (b) keep C4 syntax and adopt a C4-aware renderer (e.g. Structurizr DSL or a VS Code C4/Mermaid plugin). Resolve before next diagram update.
 
 ---
 
