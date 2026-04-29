@@ -21,7 +21,21 @@ def test_writes_verbatim_markdown_transcript(tmp_path):
 def test_transcript_filename_includes_session_id(tmp_path):
     writer = TranscriptWriter(output_dir=str(tmp_path))
     file_path = writer.write_transcript("my-session", [])
-    assert "my-session" in os.path.basename(file_path)
+    assert "my-sessi" in os.path.basename(file_path)
+
+
+def test_transcript_filename_includes_timestamp(tmp_path):
+    writer = TranscriptWriter(output_dir=str(tmp_path))
+    file_path = writer.write_transcript("my-session", [])
+    import re
+    assert re.search(r"\d{4}-\d{2}-\d{2}_\d{6}", os.path.basename(file_path))
+
+
+def test_transcript_filename_includes_topic_slug(tmp_path):
+    writer = TranscriptWriter(output_dir=str(tmp_path))
+    history = ["User: I need to track habits.", "Router: What kind?"]
+    file_path = writer.write_transcript("abc123", history)
+    assert "i-need-to-track-habits" in os.path.basename(file_path)
 
 
 def test_empty_session_still_writes_file(tmp_path):

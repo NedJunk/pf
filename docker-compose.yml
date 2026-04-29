@@ -26,7 +26,7 @@ services:
     environment:
       - ROUTER_SERVICE_URL=http://router-service:8080
       - CONFIDENCE_THRESHOLD=${CONFIDENCE_THRESHOLD:-0.5}
-      - AGENT_TIMEOUT_SECONDS=${AGENT_TIMEOUT_SECONDS:-2}
+      - AGENT_TIMEOUT_SECONDS=${AGENT_TIMEOUT_SECONDS:-15}
     depends_on:
       dev-coach:
         condition: service_healthy

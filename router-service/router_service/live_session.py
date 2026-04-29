@@ -193,4 +193,4 @@ class LiveSession:
                     f"{self._orchestrator_url}/turns", json=payload, timeout=2.0
                 )
             except Exception as exc:
-                logger.warning("Failed to post turn event: %s", exc)
+                logger.warning("Failed to post turn event [%s] to %s: %s", type(exc).__name__, self._orchestrator_url, exc)

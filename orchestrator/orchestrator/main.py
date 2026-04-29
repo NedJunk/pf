@@ -1,6 +1,6 @@
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from orchestrator.agent_registry import load_registry
 from orchestrator.health_monitor import HealthMonitor
 from orchestrator.turn_handler import handle_turn
@@ -22,11 +22,12 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-@app.post("/turns", status_code=200)
-async def receive_turn(body: dict):
+@app.post("/turns", status_code=202)
+async def receive_turn(body: dict, background_tasks: BackgroundTasks):
     if not _ROUTER_SERVICE_URL:
         raise HTTPException(status_code=503, detail="ROUTER_SERVICE_URL not configured")
-    await handle_turn(
+    background_tasks.add_task(
+        handle_turn,
         turn_event=body,
         agents=_agents,
         health_monitor=_monitor,

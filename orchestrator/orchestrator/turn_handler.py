@@ -64,5 +64,5 @@ async def _call_agent(agent: AgentConfig, turn_event: dict, timeout: int) -> dic
             logger.warning("Agent %s timed out", agent.name)
             return None
         except Exception as exc:
-            logger.warning("Agent %s error: %s", agent.name, exc)
+            logger.warning("Agent %s error [%s] url=%s: %s", agent.name, type(exc).__name__, agent.url, exc)
             return None
