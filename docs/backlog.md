@@ -6,11 +6,11 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 
 ## Now
 
-Three items are immediately actionable. BUG-07 is elevated — it is degrading close-sequence UX and amplifying BUG-05 residue.
+One item is immediately actionable.
 
 - [x] **BUG-04/05/06 — behavioral contract gaps** — fixed (2026-04-29, commit 743db2b). Conditional opener confirmed working in session 8d775b26: router acknowledged user-supplied context and asked a clarifying question rather than firing the stock phrase. Whisper deflection confirmed: "I will work with whatever context arrives in the session." BUG-05 residue still present at close — see BUG-07 note below; may resolve when stutter is fixed.
 
-- [ ] **BUG-07 — fix fragmented assistant turns** — see Known Bugs for full detail. Priority elevated after session 8d775b26. Investigate `_gemini_to_browser` in `live_session.py`; determine whether `turn_complete` fires per-chunk or per-full-turn and coalesce accordingly.
+- [x] **BUG-07 — fix fragmented assistant turns** — fixed (2026-04-29, commit efd7aac). Root cause: Gemini Live API emits multiple consecutive `turn_complete` events for one logical response; each flush created a new `"Assistant:"` history entry. Fix: `_flush_output_buf()` coalesces into any trailing `"Assistant:"` entry instead of always appending. Also fixes identical-duplicate case from session c20adebf. Re-evaluate BUG-05 residue in next live session.
 
 - [ ] **E4-A — Design: PM agent** — define whisper contract, backlog integration spec, and evaluation criteria. Scope: backlog-aware, surfaces relevant open items during sessions, drafts and files new items on request, resolves spoken bug codes (e.g. "BUG-01") to full entries. Absorbs E6-B (easy bug referencing) — that feature is delivered by this agent, not a standalone tool.
 
