@@ -116,6 +116,8 @@ Note: the transcript labeling workflow (E1-C below) was previously blocked by UU
 
 - [ ] **E6-C3 — Build: debug agent** — implement the debug-aware agent loaded on passphrase activation, informed by the E6-C1 design. Depends on E6-C2.
 
+- [ ] **E6-F — Workflow: C4 diagram maintenance** — C4 diagrams (L1 context, L2 containers, L3 router service, L3 expert agent base) live in `docs/architecture/c4-diagrams.md`. Update them whenever a new service, container, or major component is added or removed. Trigger: any commit that touches `docker-compose.yml`, adds a new service directory, or significantly restructures an existing container's internals. No tooling required — diagrams are hand-authored Mermaid; the `engineering-skills:senior-architect` skill's diagram generator can assist but its auto-detection is coarse and the C4 output should be reviewed manually.
+
 ---
 
 ## Epic 7 — Security & Scalability
