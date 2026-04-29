@@ -33,7 +33,9 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 
 - [x] **BUG-02 verification** — confirmed active in session 0185cc4f (2026-04-29, 13:23): no affirmations present. Affirmations in session 7e9bc99b (12:40) were pre-rebuild. Closed.
 
-- [x] **BUG-07 — duplicate/fragmented assistant turns in transcript** — fixed (2026-04-29, commit efd7aac). Root cause: Gemini Live API emits multiple consecutive `turn_complete` events per logical response. Fix: `_flush_output_buf()` coalesces into any trailing `"Assistant:"` entry. Re-evaluate BUG-05 residue in next live session.
+- [x] **BUG-07 — duplicate/fragmented assistant turns in transcript** — fixed (2026-04-29, commit efd7aac). Root cause: Gemini Live API emits multiple consecutive `turn_complete` events per logical response. Fix: `_flush_output_buf()` coalesces into any trailing `"Assistant:"` entry. **Partially fixed only** (session 15383d0b, 2026-04-29): storage coalescing holds, but the router still emits multiple questions per turn in live speech — e.g. two or three clarifying questions concatenated in a single response. This may be a separate speech-generation issue distinct from the transcript storage bug. Observe in next sessions before opening a new bug.
+
+- [ ] **BUG-09 — router overstates PM agent capability** — flagged in session 15383d0b (2026-04-29): router repeatedly used language like *"a note will be passed to the project manager"* and *"a note will be captured,"* implying an active PM agent that doesn't exist yet. What actually occurs is transcript review by the user/Claude. The behavioral contract should either clarify that note-passing is mediated by transcript review, or instruct the router not to reference the mechanism at all. Blocks user trust in router accuracy.
 
 - [ ] **BUG-08 — router persona has no human name** — flagged in session c20adebf (2026-04-29): user noted "router" is confusing for the conversational agent they're speaking with. *"I think of this router as the individual agent with whom I'm speaking right now... it should be named after some function of a person rather than some piece of hardware."* Requires a terminology audit across the codebase and a rename proposal for the router's voice persona. Separate from the service name (Router Service stays); this is about what the voice agent calls itself and how it is referred to in docs and the behavioral contract.
 
@@ -116,13 +118,15 @@ Note: the transcript labeling workflow (E1-C below) was previously blocked by UU
 
 - [ ] **E6-F — Workflow: C4 diagram maintenance** — C4 diagrams (L1 context, L2 containers, L3 router service, L3 expert agent base) live in `docs/architecture/c4-diagrams.md`. Update them whenever a new service, container, or major component is added or removed. Trigger: any commit that touches `docker-compose.yml`, adds a new service directory, or significantly restructures an existing container's internals.
 
-  **Open design question:** current diagrams use Mermaid's C4-specific syntax (`C4Context`, `C4Container`, `C4Component`) which requires Mermaid v9.4+ with C4 plugin support — not rendered by GitHub or standard VS Code Markdown preview. Two options: (a) rewrite as standard `flowchart` diagrams using subgraphs/node shapes to approximate C4 style — renders everywhere, loses strict C4 formalism; (b) keep C4 syntax and adopt a C4-aware renderer (e.g. Structurizr DSL or a VS Code C4/Mermaid plugin). Resolve before next diagram update.
+  **Open design question:** current diagrams use Mermaid's C4-specific syntax (`C4Context`, `C4Container`, `C4Component`) which requires Mermaid v9.4+ with C4 plugin support — not rendered by GitHub or standard VS Code Markdown preview. Three options: (a) rewrite as standard `flowchart` diagrams using subgraphs/node shapes to approximate C4 style — renders everywhere, loses strict C4 formalism; (b) keep C4 syntax and adopt a C4-aware renderer (e.g. Structurizr DSL or a VS Code C4/Mermaid plugin); (c) intermediate conversion layer — render Mermaid C4 diagrams to PNG at build/doc-generation time and embed static images in README/wiki — avoids renderer dependency but images go stale if diagrams aren't regenerated. Resolve before next diagram update.
 
 - [ ] **E6-D — Feature: Router agent skill awareness** — the Router has no awareness of what tools and skills are available to Claude Code in the current session. User noted in session b9a16813 (2026-04-29) that the Router should be able to surface or reference newly added skills (e.g. `pm-skills`, `product-skills`) during a session. Design question: is this a behavioral contract addition, a session-start context injection, or a whisper from a meta-agent?
 
 - [x] **E6-E — Build: log retrieval workflow** — delivered `scripts/dev-logs.sh` (2026-04-29). Pulls all three services, filters health checks, supports `-n` (lines), `-s` (single service), `-f` (follow), `-i` (session ID filter).
 
 - [ ] **E6-G — Skill: `/session-review` shorthand** — single invocation that chains: (1) runs `scripts/session-review.sh [id]` to produce the compact bundle, (2) feeds it through meeting-analyzer logic, (3) surfaces backlog update candidates and prompts for confirmation. Replaces the current three-step manual flow (run script → `/pm-skills:meeting-analyzer` → ask for backlog update).
+
+- [ ] **E6-H — Design: epic naming conventions for developer recall** — user finds current codes + nature-descriptions adequate for orientation but struggles to recall codes from memory mid-session, defaulting to describing epic content instead. Scope: evaluate naming conventions (mnemonic codes, short aliases, or descriptive slugs) that improve unaided recall. The PM agent design (E4-A) should factor in this cognitive style — surfacing items by description match as well as by code. May be fully absorbed into E4-A scope; evaluate at design time.
 
 - [ ] **E6-C1 — SPIKE: debug mode design** — time-boxed (1 day). Resolve the open design questions: activation scope (logging only vs. agent swap vs. both), debug agent identity and context sources, session isolation strategy, passphrase management, reset behavior. Deliverable: written design decision.
 
@@ -137,6 +141,8 @@ Note: the transcript labeling workflow (E1-C below) was previously blocked by UU
 ## Epic 7 — Security & Scalability
 
 *Explicitly deferred. Revisit when the system is working well for a single user and sharing it with others becomes relevant.*
+
+**Risk note (session 15383d0b, 2026-04-29):** user explicitly flagged that security should be built in from the beginning, not retrofitted. Before deferral becomes a blocker, conduct an adequacy assessment: how hard will it be to add authentication, session isolation, and rate limiting to the current architecture? The answer should inform whether Epic 7 stays deferred or gets pulled earlier. Do not let this note age without a deliberate decision.
 
 - [ ] **E7-A — Authentication and session authorization**
 - [ ] **E7-B — Rate limiting and abuse protection**
