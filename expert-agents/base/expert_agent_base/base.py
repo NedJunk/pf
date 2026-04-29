@@ -6,8 +6,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+import httpx
 from fastapi import BackgroundTasks, FastAPI
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import Response
 
 from expert_agent_base.wiki import WikiManager, parse_ingest_response
 
@@ -143,6 +144,39 @@ class ExpertAgentBase(ABC):
             except Exception:
                 pass
 
+    async def _handle_whisper(self, body: dict) -> None:
+        context = WhisperContext(
+            session_id=body["session_id"],
+            history=body["context"]["history"],
+            goals=body["context"]["goals"],
+            project_map=body["context"]["project_map"],
+        )
+        callback_url: Optional[str] = body.get("callback_url")
+        confidence_threshold: float = float(body.get("confidence_threshold", 0.5))
+
+        context.wiki_context = await self._query_wiki("\n".join(context.history))
+        try:
+            result = await self.whisper(context)
+        except Exception as exc:
+            logger.error("Whisper generation failed session=%s: %s", context.session_id, exc)
+            return
+
+        if result is None or result.confidence < confidence_threshold or not callback_url:
+            return
+
+        async with httpx.AsyncClient() as client:
+            try:
+                await client.post(
+                    callback_url,
+                    json={"source": result.source, "message": result.message},
+                    timeout=5.0,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to deliver whisper callback session=%s: %s",
+                    context.session_id, exc,
+                )
+
     def _build_app(self) -> FastAPI:
         app = FastAPI()
 
@@ -151,26 +185,10 @@ class ExpertAgentBase(ABC):
             background_tasks.add_task(self._safe_ingest, body["session_id"], body["transcript"])
             return {}
 
-        @app.post("/whisper")
-        async def whisper_endpoint(body: dict):
-            context = WhisperContext(
-                session_id=body["session_id"],
-                history=body["context"]["history"],
-                goals=body["context"]["goals"],
-                project_map=body["context"]["project_map"],
-            )
-            context.wiki_context = await self._query_wiki("\n".join(context.history))
-            try:
-                result = await self.whisper(context)
-            except Exception as exc:
-                return JSONResponse({"error": str(exc)}, status_code=503)
-            if result is None:
-                return Response(status_code=204)
-            return JSONResponse({
-                "source": result.source,
-                "message": result.message,
-                "confidence": result.confidence,
-            })
+        @app.post("/whisper", status_code=202)
+        async def whisper_endpoint(body: dict, background_tasks: BackgroundTasks):
+            background_tasks.add_task(self._handle_whisper, body)
+            return {}
 
         @app.get("/health")
         async def health():

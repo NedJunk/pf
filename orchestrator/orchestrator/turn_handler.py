@@ -20,29 +20,22 @@ async def handle_turn(
         logger.warning("No healthy agents for turn event session=%s", turn_event["session_id"])
         return
 
-    results = await asyncio.gather(
-        *[_call_agent(a, turn_event, agent_timeout) for a in healthy],
+    session_id = turn_event["session_id"]
+    callback_url = f"{router_service_url}/sessions/{session_id}/whisper"
+
+    await asyncio.gather(
+        *[_call_agent(a, turn_event, callback_url, confidence_threshold, agent_timeout) for a in healthy],
         return_exceptions=True,
     )
 
-    session_id = turn_event["session_id"]
-    async with httpx.AsyncClient() as client:
-        for result in results:
-            if isinstance(result, Exception) or result is None:
-                continue
-            if result["confidence"] < confidence_threshold:
-                continue
-            try:
-                await client.post(
-                    f"{router_service_url}/sessions/{session_id}/whisper",
-                    json={"source": result["source"], "message": result["message"]},
-                    timeout=5.0,
-                )
-            except Exception as exc:
-                logger.warning("Failed to post whisper to router: %s", exc)
 
-
-async def _call_agent(agent: AgentConfig, turn_event: dict, timeout: int) -> dict | None:
+async def _call_agent(
+    agent: AgentConfig,
+    turn_event: dict,
+    callback_url: str,
+    confidence_threshold: float,
+    timeout: int,
+) -> None:
     payload = {
         "session_id": turn_event["session_id"],
         "context": {
@@ -50,19 +43,13 @@ async def _call_agent(agent: AgentConfig, turn_event: dict, timeout: int) -> dic
             "goals": turn_event["goals"],
             "project_map": turn_event["project_map"],
         },
+        "callback_url": callback_url,
+        "confidence_threshold": confidence_threshold,
     }
     async with httpx.AsyncClient() as client:
         try:
             resp = await client.post(f"{agent.url}/whisper", json=payload, timeout=float(timeout))
-            if resp.status_code == 204:
-                return None
-            if resp.status_code == 200:
-                return resp.json()
-            logger.warning("Agent %s returned %s", agent.name, resp.status_code)
-            return None
-        except asyncio.TimeoutError:
-            logger.warning("Agent %s timed out", agent.name)
-            return None
+            if resp.status_code != 202:
+                logger.warning("Agent %s returned %s for whisper dispatch", agent.name, resp.status_code)
         except Exception as exc:
             logger.warning("Agent %s error [%s] url=%s: %s", agent.name, type(exc).__name__, agent.url, exc)
-            return None

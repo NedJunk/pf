@@ -1,5 +1,5 @@
 confidence_threshold: 0.5
-agent_timeout_seconds: 15
+agent_timeout_seconds: 5
 agents:
   - name: "DevCoach"
     url: "http://dev-coach:8082"

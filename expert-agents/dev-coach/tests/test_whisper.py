@@ -79,7 +79,7 @@ async def test_whisper_returns_none_for_no_whisper_response(mock_genai):
 
 
 @patch("dev_coach.main.genai")
-def test_endpoint_returns_503_on_gemini_error(mock_genai):
+def test_endpoint_returns_202_even_on_gemini_error(mock_genai):
     mock_client = MagicMock()
     mock_client.aio.models.generate_content = AsyncMock(
         side_effect=Exception("API error")
@@ -89,7 +89,7 @@ def test_endpoint_returns_503_on_gemini_error(mock_genai):
     from dev_coach.main import DevCoach
     client = TestClient(DevCoach().app)
     resp = client.post("/whisper", json=_http_context())
-    assert resp.status_code == 503
+    assert resp.status_code == 202
 
 
 @patch("dev_coach.main.genai")
