@@ -27,6 +27,7 @@ class LiveSession:
         transcript_output_dir: str,
         history_tail_length: int,
         live_api_model: str,
+        backlog_path: str = "",
     ) -> None:
         self.session_id = session_id
         self.project_map = project_map
@@ -36,6 +37,7 @@ class LiveSession:
         self._transcript_output_dir = transcript_output_dir
         self._history_tail_length = history_tail_length
         self._live_api_model = live_api_model
+        self._backlog_path = backlog_path
 
         self._client = genai.Client(api_key=api_key)
         self._gemini_session = None
@@ -48,11 +50,24 @@ class LiveSession:
         self._closed = False
 
     async def connect(self) -> None:
+        system_instruction = BEHAVIORAL_CONTRACT
+        if self._backlog_path:
+            from pathlib import Path
+            p = Path(self._backlog_path)
+            if p.exists():
+                backlog = p.read_text()
+                system_instruction += (
+                    "\n\n# Current Project Backlog\n"
+                    "You have read-only awareness of the current project backlog. "
+                    "Reference specific items when the user mentions bugs, epics, or work items by code. "
+                    "Do not read out or summarise backlog sections unprompted.\n\n"
+                    + backlog
+                )
         config = {
             "response_modalities": ["AUDIO"],
             "input_audio_transcription": {},
             "output_audio_transcription": {},
-            "system_instruction": BEHAVIORAL_CONTRACT,
+            "system_instruction": system_instruction,
             "generation_config": {
                 "thinking_config": {"thinking_budget": 0},
             },

@@ -69,6 +69,48 @@ async def test_connect_opens_gemini_session_without_context_injection(mock_genai
 
 @pytest.mark.asyncio
 @patch("router_service.live_session.genai")
+async def test_connect_appends_backlog_to_system_instruction(mock_genai, tmp_path):
+    backlog_file = tmp_path / "backlog.md"
+    backlog_file.write_text("# Backlog\n- BUG-04 conditional opener\n")
+
+    _, mock_session = _mock_gemini()
+    mock_genai.Client.return_value.aio.live.connect.return_value.__aenter__ = (
+        AsyncMock(return_value=mock_session)
+    )
+    mock_genai.Client.return_value.aio.live.connect.return_value.__aexit__ = (
+        AsyncMock(return_value=None)
+    )
+
+    session = _session(backlog_path=str(backlog_file))
+    await session.connect()
+
+    call_kwargs = mock_genai.Client.return_value.aio.live.connect.call_args
+    si = call_kwargs.kwargs["config"]["system_instruction"]
+    assert "BUG-04 conditional opener" in si
+    assert "Current Project Backlog" in si
+
+
+@pytest.mark.asyncio
+@patch("router_service.live_session.genai")
+async def test_connect_skips_backlog_when_path_missing(mock_genai):
+    _, mock_session = _mock_gemini()
+    mock_genai.Client.return_value.aio.live.connect.return_value.__aenter__ = (
+        AsyncMock(return_value=mock_session)
+    )
+    mock_genai.Client.return_value.aio.live.connect.return_value.__aexit__ = (
+        AsyncMock(return_value=None)
+    )
+
+    session = _session(backlog_path="/nonexistent/backlog.md")
+    await session.connect()
+
+    call_kwargs = mock_genai.Client.return_value.aio.live.connect.call_args
+    si = call_kwargs.kwargs["config"]["system_instruction"]
+    assert "Current Project Backlog" not in si
+
+
+@pytest.mark.asyncio
+@patch("router_service.live_session.genai")
 @patch("router_service.live_session.httpx")
 async def test_turn_complete_sends_control_frame_and_posts_turn_event(mock_httpx, mock_genai):
     turn_complete_response = MagicMock()

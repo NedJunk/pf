@@ -19,6 +19,7 @@ class SessionRegistry:
             transcript_output_dir=os.environ.get("TRANSCRIPT_OUTPUT_DIR", "/app/transcripts"),
             history_tail_length=int(os.environ.get("HISTORY_TAIL_LENGTH", "10")),
             live_api_model=os.environ.get("LIVE_API_MODEL", "gemini-2.0-flash-live-001"),
+            backlog_path=os.environ.get("BACKLOG_PATH", ""),
         )
         return session_id
 

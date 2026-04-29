@@ -11,8 +11,10 @@ services:
       - LIVE_API_MODEL=${LIVE_API_MODEL:-gemini-2.5-flash-native-audio-latest}
       - HISTORY_TAIL_LENGTH=${HISTORY_TAIL_LENGTH:-10}
       - TRANSCRIPT_OUTPUT_DIR=/app/transcripts
+      - BACKLOG_PATH=/app/backlog.md
     volumes:
       - ./transcripts:/app/transcripts
+      - ./docs/backlog.md:/app/backlog.md:ro
     depends_on:
       orchestrator:
         condition: service_healthy
