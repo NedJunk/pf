@@ -6,11 +6,9 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 
 ## Now
 
-Three items are immediately actionable. BUG-01 is a one-liner; close it first. E4-A is the highest-value next feature.
+Two items are immediately actionable and independent.
 
-- [ ] **BUG-01 — orchestrator ↔ dev-coach connectivity errors** — one fix remaining (2026-04-29): raise `agent_timeout_seconds` from 15 → 30 in `agents.yaml` and the `docker-compose.yml` default, then `docker compose up --build` and verify a clean session. Pipeline is otherwise unblocked — whispers are reaching dev-coach. Whisper-back timeout already raised 2s → 5s.
-
-  **Done when:** a complete session produces no `Agent DevCoach error` log lines, and at least one whisper is delivered to the router.
+- [ ] **BUG-04/05/06 — behavioral contract gaps** — three related issues confirmed across sessions 7e9bc99b, 0185cc4f, c20adebf. All require changes to `voice-router/src/router/behavioral_contract.py`: (1) conditional opener — skip the stock opener if the user's first turn establishes context; (2) no summaries or directives — closing move must be a question or brief acknowledgement; (3) whisper deflection — when asked about external context, deflect naturally rather than denying the capability. All three can be fixed in one pass with corresponding tests.
 
 - [ ] **E4-A — Design: PM agent** — define whisper contract, backlog integration spec, and evaluation criteria. Scope: backlog-aware, surfaces relevant open items during sessions, drafts and files new items on request, resolves spoken bug codes (e.g. "BUG-01") to full entries. Absorbs E6-B (easy bug referencing) — that feature is delivered by this agent, not a standalone tool.
 
@@ -23,7 +21,7 @@ Three items are immediately actionable. BUG-01 is a one-liner; close it first. E
 ## Known Bugs
 
 - [x] **BUG-00 — voice interruption broken** — confirmed fixed in session f1f1fdda (2026-04-29).
-- [ ] **BUG-01** — one fix remaining; see Now section above.
+- [x] **BUG-01** — **fixed** (2026-04-29, session c20adebf): async callback pattern eliminated all timeouts. 11 turns, zero `ReadTimeout` errors, 7 of 10 whispers delivered. Two late callbacks arrived post-close (404) — expected behavior of async pattern. See commit f3a1dbf.
 - [x] **BUG-02 — router refuses to relay context to whisper agents** — fixed (2026-04-29): updated `behavioral_contract.py` to carve out in-session agent relay as facilitation and added tone directive prohibiting affirmations. 30 tests passing.
 - [ ] **BUG-03 — httpx client created per call (no connection pooling)** — identified in architecture review (2026-04-29). Five sites open a new `httpx.AsyncClient` on every invocation: `turn_handler._call_agent`, the whisper-back loop in `turn_handler.handle_turn`, `session_handler._call_ingest`, `live_session._post_turn_event`, and `live_session._post_session_close`. Under a 30-turn session this is 30+ connection setups with no reuse. Fix: share a single client (e.g. injected at app startup via FastAPI lifespan, or module-level singleton). Not currently causing visible failures; lower priority than BUG-01.
 
@@ -34,6 +32,10 @@ Three items are immediately actionable. BUG-01 is a one-liner; close it first. E
 - [ ] **BUG-06 — router denies whisper awareness when asked directly** — observed in session 0185cc4f (2026-04-29): user asked "you should be receiving whispers from a project manager agent, I think. Is that the case?"; router responded "Confirmation of external communication is beyond my scope." This is factually wrong and breaks trust. Behavioral contract instructs natural weaving of whispers but gives no guidance for direct questions about the mechanism. Fix: add a rule — when asked about external input or context, deflect naturally without denying the capability (e.g. "I'll work with whatever context arrives in the session").
 
 - [x] **BUG-02 verification** — confirmed active in session 0185cc4f (2026-04-29, 13:23): no affirmations present. Affirmations in session 7e9bc99b (12:40) were pre-rebuild. Closed.
+
+- [ ] **BUG-07 — duplicate assistant turns in transcript** — observed in session c20adebf (2026-04-29): two consecutive identical `A:` lines appear mid-transcript. Either a transcription bug (buffer flushed twice on `turn_complete`) or Gemini fired two `turn_complete` events for one turn. Investigate `_gemini_to_browser` in `live_session.py` — specifically whether `turn_complete` can fire twice for a single assistant turn.
+
+- [ ] **BUG-08 — router persona has no human name** — flagged in session c20adebf (2026-04-29): user noted "router" is confusing for the conversational agent they're speaking with. *"I think of this router as the individual agent with whom I'm speaking right now... it should be named after some function of a person rather than some piece of hardware."* Requires a terminology audit across the codebase and a rename proposal for the router's voice persona. Separate from the service name (Router Service stays); this is about what the voice agent calls itself and how it is referred to in docs and the behavioral contract.
 
 ---
 
