@@ -38,7 +38,7 @@ session_logs=$(echo "$all_logs" | grep "$short_id" || true)
 turns=$(echo "$all_logs"        | grep -c "POST /turns.*202"     || true)
 timeouts=$(echo "$all_logs"     | grep -c "ReadTimeout"          || true)
 whisper_acks=$(echo "$all_logs" | grep -c "POST /whisper.*202"   || true)
-ingest=$(echo "$all_logs"       | grep -c "POST /ingest.*202"    || true)
+ingest=$(echo "$session_logs"   | grep -c "ingest.*session=$short_id" || true)
 
 # Counts that include session ID — filter to this session only
 whisper_delivered=$(echo "$session_logs" | grep -c "POST /sessions.*whisper.*200" || true)

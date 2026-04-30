@@ -2,6 +2,14 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from orchestrator.agent_registry import AgentConfig
 from orchestrator.session_handler import handle_session_close
+import orchestrator.session_handler as _sh
+
+
+@pytest.fixture(autouse=True)
+def reset_ingested_sessions():
+    _sh._ingested_sessions.clear()
+    yield
+    _sh._ingested_sessions.clear()
 
 
 def _event():
@@ -81,6 +89,30 @@ async def test_logs_and_continues_on_agent_error():
         await handle_session_close(_event(), [_agent()], _monitor(), timeout=2)
 
     assert call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_duplicate_close_event_does_not_double_ingest():
+    posted = []
+
+    async def mock_post(url, **kwargs):
+        posted.append(url)
+        resp = MagicMock()
+        resp.status_code = 202
+        return resp
+
+    mock_client = AsyncMock()
+    mock_client.post = mock_post
+    cm = AsyncMock()
+    cm.__aenter__ = AsyncMock(return_value=mock_client)
+    cm.__aexit__ = AsyncMock(return_value=None)
+
+    with patch("orchestrator.session_handler.httpx.AsyncClient", return_value=cm):
+        await handle_session_close(_event(), [_agent()], _monitor(), timeout=2)
+        await handle_session_close(_event(), [_agent()], _monitor(), timeout=2)
+
+    ingest_calls = [u for u in posted if "ingest" in u]
+    assert len(ingest_calls) == 1
 
 
 @pytest.mark.asyncio
