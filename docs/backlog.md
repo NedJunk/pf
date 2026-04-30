@@ -8,13 +8,9 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 
 - [x] **E6-G — Build: `/session-review` shorthand skill** — delivered (2026-04-30): `.claude/commands/session-review.md` chains `session-review.sh` with session-type detection (auto or explicit) and a modular analysis pipeline. New session types and analysis modules can be added by editing the registry table and module library sections in the command file.
 
-- [ ] **E4-A — Design: PM agent** — define whisper contract, backlog integration spec, and evaluation criteria. Scope: backlog-aware, surfaces relevant open items during sessions, drafts and files new items on request, resolves spoken bug codes (e.g. "BUG-01") to full entries. Absorbs E6-B (easy bug referencing) — that feature is delivered by this agent, not a standalone tool.
+- [ ] **E4-H — Design: researcher agent** — second expert agent using Gemini Deep Research. Scope: async background research triggered autonomously (inferred from transcript) or explicitly (user request); findings persisted in agent wiki; relevant excerpts whispered into live sessions. Both trigger modes instrumented for evaluation. Gaps and in-progress status are first-class, not failures. See E4-I/J/K for build items.
 
-  **Urgency confirmed** (session c4822cff, 2026-04-29): user ended session early because the router lacked backlog context. This is a productivity blocker, not a UX improvement.
-
-  **Open design question (session c4822cff):** real-time injection (agent whispers on every relevant turn) vs. summary-based approach (backlog digest injected at session start). Tradeoffs: real-time has higher latency cost per turn; summary-based risks stale context mid-session. Note: a summary-based approach bypasses the whisper timeout problem (BUG-01 tail) for this agent entirely.
-
-  **Design question partially resolved (session 8d775b26, 2026-04-29):** backlog-at-session-start is now proven — the router correctly cited E6-C1 and E6-C2 by code in response to a natural reference. This validates the summary-based approach for the PM agent. Real-time whispers from the PM agent remain valuable for surfacing items mid-session, but session-start injection is the confirmed baseline.
+- [ ] **E4-L — Build: `/synthesize` endpoint on ExpertAgentBase** — add `POST /synthesize` to the base ABC with a default Karpathy-style implementation: read agent wiki + recent ingest history, distill patterns, compress knowledge, write updated wiki back. Agents override for domain-specific synthesis; those that don't get the default. Called at agent startup and on demand. Absorbed E4-G.
 
 ---
 
@@ -51,25 +47,31 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 
 ## Epic 4 — Expert Ecosystem
 
-*More agents means more value. The PM agent is the highest-priority second agent based on three sessions of observed user friction. Each agent should be independently deployable and testable.*
+*Multiple agents with distinct behaviors give the routing layer something real to optimize. Each agent is independently deployable and testable.*
 
-- [ ] **E4-A** — in Now section above.
+- [~] **E4-A — Design: PM agent** — won't-do (2026-04-30): dev-coach is covering the backlog-context use case adequately. A dedicated PM agent is not justified at current scale for a single-user system.
 
-- [ ] **E4-B — Build: PM agent core** — implement whisper responses and session context awareness. Agent reads the backlog at startup, listens for bug/feature references during turns, and surfaces relevant items above confidence threshold.
+- [~] **E4-B — Build: PM agent core** — won't-do (2026-04-30): blocked on E4-A; closed with it.
 
-  **Design constraint (session 6275d9ca, 2026-04-29):** at high whisper volume (24 acks in 28 turns), delivery rate dropped to 37.5% — whispers queued faster than they could be injected. The PM agent must throttle or batch whispers rather than firing on every relevant turn. Consider a minimum inter-whisper gap or a turn-budget cap per session.
+- [~] **E4-C — Build: PM agent backlog write + bug code resolution** — won't-do (2026-04-30): closed with PM agent chain.
 
-  **Design notes from architecture review (2026-04-29):** (1) `goals` and `project_map` fields exist in every turn event payload but the browser client never populates them — they are always empty. The PM agent will need goals context; either the browser client must be extended to collect goals at session start, or the PM agent reads the backlog directly. (2) Whisper delivery is fire-and-forget with no retry — if the router session closes before a whisper arrives, it 404s silently. Acceptable for MVP but worth noting in the design.
+- [~] **E4-D — Eval: PM agent quality** — won't-do (2026-04-30): closed with PM agent chain.
 
-- [ ] **E4-C — Build: PM agent backlog write + bug code resolution** — agent can draft new backlog items from session context and resolve spoken short codes to full entries. Depends on E4-B.
+- [ ] **E4-H** — in Now section above.
 
-- [ ] **E4-D — Eval: PM agent quality** — labeled test cases for: correct item surfacing, correct item drafting, correct refusal (not surfacing irrelevant items). Feeds into E1 evalset.
+- [ ] **E4-I — Build: researcher agent core** — implement `/ingest` endpoint: extract research topics from transcript (autonomous inference + explicit instruction detection), tag trigger mode, spawn async Gemini Deep Research tasks, track task status (queued / in-progress / complete), write findings and gaps to agent wiki on completion. Depends on E4-H design.
 
-- [ ] **E4-E — Design: agent routing improvements** — smarter orchestrator routing beyond broadcast-all; LLM-assisted relevance scoring so agents only receive turns relevant to their domain. Pre-work: `orchestrator/orchestrator/routing.py` contains a `select_expert` stub that raises `NotImplementedError` and is never called — the orchestrator currently broadcasts directly in `turn_handler.py`. Wire up or clearly tombstone the stub before building on it.
+- [ ] **E4-J — Build: researcher agent whisper** — implement `/whisper` endpoint: score wiki against current turn context, return most relevant research excerpt. If a relevant task is in-progress, whisper a brief status note. Depends on E4-I.
+
+- [ ] **E4-K — Eval: autonomous vs. instructed research mode** — compare trigger modes across sessions: relevance of autonomously-inferred topics vs. explicitly requested ones, whisper acceptance rate, user follow-up rate. Feeds into E1 evalset.
+
+- [ ] **E4-L** — in Now section above.
+
+- [ ] **E4-E — Design: agent routing improvements** — smarter orchestrator routing beyond broadcast-all; LLM-assisted relevance scoring so agents only receive turns relevant to their domain. Pre-work: `orchestrator/orchestrator/routing.py` contains a `select_expert` stub that raises `NotImplementedError` and is never called — the orchestrator currently broadcasts directly in `turn_handler.py`. Wire up or clearly tombstone the stub before building on it. Requires both dev-coach and researcher agent operational.
 
 - [ ] **E4-F — Build: improved routing** — implement the routing design from E4-E.
 
-- [ ] **E4-G — Feature: startup synthesis for expert agents** — on agent startup, synthesize patterns from the N most recent ingested sessions into a running wiki entry and flag drift across sessions. Simple first slice: summarize last 5 sessions on start. Identified in session e98fae54 (2026-04-30). Candidate enhancement to E4-B or a standalone synthesis agent.
+- [~] **E4-G — Feature: startup synthesis for expert agents** — absorbed into E4-L (`/synthesize` endpoint on ExpertAgentBase). Closed.
 
 ---
 
