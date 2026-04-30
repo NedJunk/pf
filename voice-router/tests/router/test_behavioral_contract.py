@@ -25,8 +25,8 @@ def test_behavioral_contract_includes_conditional_opener():
     assert "first message already establishes" in BEHAVIORAL_CONTRACT
 
 
-def test_behavioral_contract_permits_in_session_relay():
-    assert "In-session agent relay is NOT an external action" in BEHAVIORAL_CONTRACT
+def test_behavioral_contract_uses_transcript_framing_for_notes():
+    assert "I'll note that in the transcript" in BEHAVIORAL_CONTRACT
 
 
 def test_behavioral_contract_prohibits_affirmations():
