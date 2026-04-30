@@ -46,6 +46,7 @@ class LiveSession:
         self._input_buf: list[str] = []
         self._output_buf: list[str] = []
         self._whisper_queue: asyncio.Queue = asyncio.Queue()
+        self._model_generating: asyncio.Event = asyncio.Event()
         self._tasks: list[asyncio.Task] = []
         self._closed = False
 
@@ -212,7 +213,9 @@ class LiveSession:
                             self._flush_output_buf()
                             self._history.append(f"User: {''.join(self._input_buf)}")
                             self._input_buf = []
+                            self._model_generating.set()
                         else:
+                            self._model_generating.clear()
                             self._flush_output_buf()
                         await browser_ws.send_text(json.dumps({"type": "turn_complete"}))
                         await self._post_turn_event()
@@ -228,6 +231,7 @@ class LiveSession:
     async def _whisper_drain(self, browser_ws: WebSocket) -> None:
         while True:
             whisper = await self._whisper_queue.get()
+            await self._model_generating.wait()
             try:
                 await browser_ws.send_text(json.dumps({
                     "type": "whisper",

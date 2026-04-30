@@ -228,6 +228,7 @@ async def test_whisper_drain_sends_control_frame_then_injects_to_gemini(mock_gen
 
     session = _session()
     session._gemini_session = mock_session
+    session._model_generating.set()   # allow drain to proceed immediately
     session.inject_whisper(source="DevCoach", message="try TDD")
 
     task = asyncio.create_task(session._whisper_drain(mock_ws))
@@ -253,6 +254,37 @@ async def test_whisper_drain_sends_control_frame_then_injects_to_gemini(mock_gen
     assert "try TDD" in client_content_calls
 
     assert any("[Whisper from DevCoach]: try TDD" in entry for entry in session._history)
+
+
+@pytest.mark.asyncio
+@patch("router_service.live_session.genai")
+async def test_whisper_drain_waits_until_model_generating(mock_genai):
+    mock_genai_inst, mock_session = _mock_gemini()
+    mock_genai.Client.return_value = mock_genai_inst.Client.return_value
+
+    mock_ws = AsyncMock()
+    mock_ws.send_text = AsyncMock()
+
+    session = _session()
+    session._gemini_session = mock_session
+    session.inject_whisper(source="DevCoach", message="try TDD")
+
+    # _model_generating is clear — drain must block
+    task = asyncio.create_task(session._whisper_drain(mock_ws))
+    await asyncio.sleep(0.05)
+    mock_session.send_client_content.assert_not_called()
+
+    # Set the event — drain must now inject
+    session._model_generating.set()
+    await asyncio.sleep(0.05)
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+    mock_session.send_client_content.assert_called_once()
+    assert "[WHISPER from DevCoach]" in str(mock_session.send_client_content.call_args_list)
 
 
 @pytest.mark.asyncio
