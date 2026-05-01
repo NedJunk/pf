@@ -11,7 +11,6 @@
 set -euo pipefail
 
 TRANSCRIPTS_DIR="$(cd "$(dirname "$0")/.." && pwd)/transcripts"
-LOG_LINES=${LOG_LINES:-200}
 
 # ── resolve transcript ────────────────────────────────────────────────────────
 if [[ $# -eq 0 ]]; then
@@ -28,9 +27,10 @@ session_id=$(grep -m1 "^# Session Transcript:" "$transcript" | awk '{print $NF}'
 short_id="${session_id:0:8}"
 
 # ── compute log metrics ───────────────────────────────────────────────────────
-# Pull full log tail (health-check filtered). Some lines include the session ID
-# (router-side whisper callbacks), others don't (orchestrator turn lines).
-all_logs=$(docker compose logs --tail="$LOG_LINES" 2>/dev/null \
+# Pull the full container log once — a fixed tail is unreliable when debug-level
+# logging is active (the combined stream is dominated by router-service debug
+# lines, pushing turn/whisper lines beyond any reasonable tail count).
+all_logs=$(docker compose logs 2>/dev/null \
   | grep -v "GET /health\|/healthz" || true)
 session_logs=$(echo "$all_logs" | grep "$short_id" || true)
 

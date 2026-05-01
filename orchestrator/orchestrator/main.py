@@ -1,3 +1,4 @@
+import logging
 import os
 from contextlib import asynccontextmanager
 from fastapi import BackgroundTasks, FastAPI, HTTPException
@@ -5,6 +6,10 @@ from orchestrator.agent_registry import load_registry
 from orchestrator.health_monitor import HealthMonitor
 from orchestrator.turn_handler import handle_turn
 from orchestrator.session_handler import handle_session_close
+
+_log_level = getattr(logging, os.environ.get("LOG_LEVEL", "INFO").upper(), logging.INFO)
+logging.basicConfig(level=_log_level, format="%(levelname)s:%(name)s:%(message)s")
+logging.getLogger("orchestrator").setLevel(_log_level)
 
 _REGISTRY_PATH = os.path.join(os.path.dirname(__file__), "agents.yaml")
 _ROUTER_SERVICE_URL = os.environ.get("ROUTER_SERVICE_URL", "")

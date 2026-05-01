@@ -10,7 +10,7 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 
 - [ ] **E4-H — Design: researcher agent** — second expert agent using Gemini Deep Research. Scope: async background research triggered autonomously (inferred from transcript) or explicitly (user request); findings persisted in agent wiki; relevant excerpts whispered into live sessions. Both trigger modes instrumented for evaluation. Gaps and in-progress status are first-class, not failures. See E4-I/J/K for build items.
 
-- [ ] **E4-L — Build: `/synthesize` endpoint on ExpertAgentBase** — add `POST /synthesize` to the base ABC with a default Karpathy-style implementation: read agent wiki + recent ingest history, distill patterns, compress knowledge, write updated wiki back. Agents override for domain-specific synthesis; those that don't get the default. Called at agent startup and on demand. Absorbed E4-G.
+- [ ] **E4-L — Build: `/synthesize` endpoint on ExpertAgentBase** — add `POST /synthesize` to the base ABC with a default Karpathy-style implementation: read agent wiki + recent ingest history, distill patterns, compress knowledge, write updated wiki back. Agents override for domain-specific synthesis; those that don't get the default. Called at agent startup and on demand. Absorbed E4-G. Verbal "Now" priority confirmation: session a23a2089 (2026-04-30).
 
 ---
 
@@ -36,6 +36,8 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 - [ ] **BUG-12 — whisper injections pollute assistant transcript entries** — `send_client_content(turn_complete=False)` suppresses audio but Gemini emits `output_transcription` events for injected text; router records these as `"A:"` entries, polluting the transcript without vocalizing. Confirmed in session e98fae54 (2026-04-30): two raw `[WHISPER from ...]` strings appeared verbatim in assistant lines. Audio fix from BUG-10 appears intact; this is the separate transcript-pollution issue identified in BUG-10 notes.
 
 - [ ] **BUG-13 — router opened with fallback phrase rather than facilitator opener** — session e98fae54 (2026-04-30) opened with `"I am functioning correctly."` instead of asking what the user is working on. DevCoach flagged it in the first whisper. Possible BUG-04 regression or an initialization timing issue (router responding before session context is established).
+
+- [x] **BUG-14 — whisper delivery metric reported 0% (false negative)** — fixed (2026-04-30): two root causes, neither was a real delivery failure. (1) `session-review.sh` used `--tail=200` on the combined container log stream; with debug-level logging active, the router-service debug lines dominated the tail and pushed turn/whisper lines beyond the window — `session_logs` was effectively empty. Fix: pull the full log stream (no tail) and derive `session_logs` via session-id grep. (2) The orchestrator had no `logging.basicConfig()` — `logger.info()` calls in `session_handler.py` were silently dropped by Python's default WARNING-level root handler. The ingest success log never reached stdout. Fix: added `logging.basicConfig` + `LOG_LEVEL` env var support to `orchestrator/main.py`. Actual delivery for session a23a2089: 5 successful callbacks (200 OK), 2 post-close 404s (expected), 1 NO_WHISPER. Orchestrator logging fix takes effect on next container restart.
 
 - [x] **BUG-11 — multiple ingest calls per session** — fixed (2026-04-30, commit 4e0d2a7): root cause was `session-review.sh` counting ingest calls across the entire log tail rather than filtering to the specific session. Added `_ingested_sessions` idempotency set to `session_handler.py` (belt-and-suspenders guard) and fixed the script metric to filter by `session=$short_id`.
 
@@ -72,6 +74,8 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 - [ ] **E4-F — Build: improved routing** — implement the routing design from E4-E.
 
 - [~] **E4-G — Feature: startup synthesis for expert agents** — absorbed into E4-L (`/synthesize` endpoint on ExpertAgentBase). Closed.
+
+- [ ] **E4-M — Feature: dev-coach roadmap awareness** — dev-coach has no awareness of the current product roadmap or milestone state; whispers are oriented only by session history and wiki content. Identified as a design oversight in session a23a2089 (2026-04-30). Scope: load roadmap/backlog snapshot at agent startup (via `/synthesize` or a dedicated context-load step); use milestone and epic state to orient whisper generation. Natural integration point: E4-L `/synthesize` endpoint.
 
 ---
 
@@ -153,6 +157,8 @@ Note: the transcript labeling workflow (E1-C below) was previously blocked by UU
 - [ ] **E6-C2 — Build: debug mode activation + logging** — implement passphrase detection and verbose logging mode. No agent swap yet — this delivers the logging half independently.
 
 - [ ] **E6-C3 — Build: debug agent** — implement the debug-aware agent loaded on passphrase activation, informed by the E6-C1 design. Depends on E6-C2.
+
+- [ ] **E6-K — Investigate: ingest call count 0 despite 8 turns processed** — session a23a2089 (2026-04-30) shows turns processed: 8, whisper acks: 8, but ingest calls: 0. Determine whether this is a metric instrumentation gap in `session-review.sh` (log parser not correctly counting from container log output vs. file) or a real failure in the ingest path. May be related to the absence of a log file — debug logging was active via containers only, and the parser may assume file-based logs.
 
 ---
 

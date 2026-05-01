@@ -23,7 +23,7 @@ Your suggestion (or NO_WHISPER):"""
 
 class DevCoach(ExpertAgentBase):
     def __init__(self) -> None:
-        model = os.environ.get("DEV_COACH_MODEL", "gemini-3.1-pro-preview")
+        model = os.environ.get("DEV_COACH_MODEL", "gemini-3-flash-preview")
         super().__init__(model=model)
         self._client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
 
