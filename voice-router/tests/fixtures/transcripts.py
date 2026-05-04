@@ -37,7 +37,7 @@ EXAMPLE_TRANSCRIPTS = [
             },
             {
                 "actor": "Router",
-                "message": "The Project Manager is flagging that we have an existing 'wellness' project. Does this habit tracker belong there, or is this its own thing?",
+                "message": "That sounds like it could fit into work you're already tracking. Should this be its own project, or does it belong somewhere in your existing setup?",
                 "validates": ["voices_whisper", "suggests_category"],
             },
             {
@@ -61,7 +61,7 @@ EXAMPLE_TRANSCRIPTS = [
 REQUIRED_BEHAVIORS = [
     "asks_clarifying_question",  # Router probes ambiguous input rather than accepting it passively
     "prompts_for_specifics",     # Router pushes the user to be concrete
-    "voices_whisper",            # Router relays an expert injection naturally in conversation
+    "voices_whisper",            # Router silently incorporates expert context to ask a more targeted question
     "suggests_category",         # Router helps connect input to known project structure
     "summarizes_capture",        # Router reflects back what was captured before closing
     "offers_closure",            # Router signals the session can end rather than running indefinitely

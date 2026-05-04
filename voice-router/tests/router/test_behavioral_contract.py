@@ -25,8 +25,11 @@ def test_behavioral_contract_includes_conditional_opener():
     assert "first message already establishes" in BEHAVIORAL_CONTRACT
 
 
-def test_behavioral_contract_uses_transcript_framing_for_notes():
-    assert "I'll note that in the transcript" in BEHAVIORAL_CONTRACT
+def test_behavioral_contract_does_not_announce_transcript_recording():
+    # BUG-16: the old "I'll note that in the transcript" phrase was redundant;
+    # Kai should silently acknowledge or ask a follow-up, not announce recording
+    assert "I'll note that in the transcript" not in BEHAVIORAL_CONTRACT
+    assert "announce what you are recording" in BEHAVIORAL_CONTRACT
 
 
 def test_behavioral_contract_prohibits_affirmations():
