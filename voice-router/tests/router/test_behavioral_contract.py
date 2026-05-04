@@ -33,7 +33,15 @@ def test_behavioral_contract_does_not_announce_transcript_recording():
 
 
 def test_behavioral_contract_prohibits_affirmations():
-    assert "ego-bolstering" in BEHAVIORAL_CONTRACT
+    # BUG-20: affirmation prohibition now explicitly covers structural patterns
+    # like "adding X makes sense", not just specific listed phrases
+    assert "NEVER affirm" in BEHAVIORAL_CONTRACT
+    assert "makes sense" in BEHAVIORAL_CONTRACT
+
+
+def test_behavioral_contract_prohibits_internal_codes():
+    # BUG-18: router must not speak internal backlog codes (BUG-XX, E4-M, etc.)
+    assert "internal backlog" in BEHAVIORAL_CONTRACT
 
 
 def test_behavioral_contract_prohibits_summaries_and_directives():
