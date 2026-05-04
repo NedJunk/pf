@@ -40,6 +40,7 @@ class LiveSession:
         self._backlog_path = backlog_path
 
         self._client = genai.Client(api_key=api_key)
+        self._http_client = httpx.AsyncClient()
         self._gemini_session = None
         self._gemini_cm = None
         self._history: list[str] = []
@@ -124,7 +125,7 @@ class LiveSession:
             finally:
                 self._gemini_cm = None
         if self._input_buf:
-            self._flush_output_buf()
+            # Record user turn FIRST — same ordering fix as turn_complete handler (BUG-22).
             self._history.append(f"User: {''.join(self._input_buf)}")
             self._input_buf = []
         self._flush_output_buf()
@@ -138,21 +139,21 @@ class LiveSession:
         except Exception as exc:
             logger.error("Failed to write transcript for session %s: %s", self.session_id, exc)
         await self._post_session_close(transcript)
+        await self._http_client.aclose()
 
     async def _post_session_close(self, transcript: str) -> None:
-        async with httpx.AsyncClient() as client:
-            try:
-                await client.post(
-                    f"{self._orchestrator_url}/sessions/{self.session_id}/close",
-                    json={"transcript": transcript},
-                    timeout=5.0,
-                )
-            except Exception as exc:
-                logger.warning(
-                    "Failed to notify orchestrator of session close session=%s: %s",
-                    self.session_id,
-                    exc,
-                )
+        try:
+            await self._http_client.post(
+                f"{self._orchestrator_url}/sessions/{self.session_id}/close",
+                json={"transcript": transcript},
+                timeout=5.0,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to notify orchestrator of session close session=%s: %s",
+                self.session_id,
+                exc,
+            )
 
     async def _browser_to_gemini(self, browser_ws: WebSocket) -> None:
         try:
@@ -190,18 +191,27 @@ class LiveSession:
                         )
                     if sc.output_transcription and sc.output_transcription.text:
                         text = sc.output_transcription.text
-                        self._output_buf.append(text)
-                        logger.debug(
-                            "[%s] output_transcription chunk #%d: %r",
-                            self.session_id, len(self._output_buf), text,
-                        )
-                        await browser_ws.send_text(
-                            json.dumps({"type": "transcript", "role": "assistant", "text": text})
-                        )
+                        if text.startswith("[WHISPER from"):
+                            # BUG-12: send_client_content(turn_complete=False) causes Gemini to
+                            # echo the injected whisper text as output_transcription. Drop it —
+                            # the whisper is already recorded in history by _whisper_drain.
+                            logger.debug(
+                                "[%s] dropping whisper output_transcription pollution: %r",
+                                self.session_id, text[:80],
+                            )
+                        else:
+                            self._output_buf.append(text)
+                            logger.debug(
+                                "[%s] output_transcription chunk #%d: %r",
+                                self.session_id, len(self._output_buf), text,
+                            )
+                            await browser_ws.send_text(
+                                json.dumps({"type": "transcript", "role": "assistant", "text": text})
+                            )
                     if sc.turn_complete:
                         # BUG-07 diagnostic: if branch=user and output_buf is non-empty,
-                        # late-arriving assistant transcription is being grouped into the
-                        # next assistant turn — the suspected root cause of mid-sentence starts.
+                        # the Gemini response began arriving before turn_complete — this is
+                        # the race condition that caused inverted transcript ordering (BUG-22).
                         logger.debug(
                             "[%s] turn_complete: branch=%s input_buf=%d chunks output_buf=%d chunks",
                             self.session_id,
@@ -210,9 +220,13 @@ class LiveSession:
                             len(self._output_buf),
                         )
                         if self._input_buf:
-                            self._flush_output_buf()
+                            # Record user turn FIRST, then any concurrently-arrived
+                            # assistant response. Flushing output before user turn caused
+                            # inverted ordering when Gemini's response began arriving before
+                            # the turn_complete event for the user's audio (BUG-22).
                             self._history.append(f"User: {''.join(self._input_buf)}")
                             self._input_buf = []
+                            self._flush_output_buf()
                             self._model_generating.set()
                         else:
                             self._model_generating.clear()
@@ -224,6 +238,9 @@ class LiveSession:
                             "[%s] interrupted: output_buf has %d chunks at interrupt",
                             self.session_id, len(self._output_buf),
                         )
+                        # Flush partial output immediately so stale interrupted content
+                        # does not survive into the next user turn_complete path (BUG-22).
+                        self._flush_output_buf()
                         await browser_ws.send_text(json.dumps({"type": "interrupted"}))
         except Exception as exc:
             logger.error("_gemini_to_browser error: %s", exc, exc_info=True)
@@ -282,10 +299,9 @@ class LiveSession:
             "goals": self.goals,
             "project_map": self.project_map,
         }
-        async with httpx.AsyncClient() as client:
-            try:
-                await client.post(
-                    f"{self._orchestrator_url}/turns", json=payload, timeout=2.0
-                )
-            except Exception as exc:
-                logger.warning("Failed to post turn event [%s] to %s: %s", type(exc).__name__, self._orchestrator_url, exc)
+        try:
+            await self._http_client.post(
+                f"{self._orchestrator_url}/turns", json=payload, timeout=2.0
+            )
+        except Exception as exc:
+            logger.warning("Failed to post turn event [%s] to %s: %s", type(exc).__name__, self._orchestrator_url, exc)

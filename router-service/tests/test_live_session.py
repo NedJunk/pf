@@ -190,9 +190,7 @@ async def test_turn_complete_sends_control_frame_and_posts_turn_event(mock_httpx
     mock_genai.Client.return_value = mock_genai_inst.Client.return_value
 
     mock_http_client = AsyncMock()
-    mock_http_client.post = AsyncMock()
-    mock_httpx.AsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_http_client)
-    mock_httpx.AsyncClient.return_value.__aexit__ = AsyncMock(return_value=None)
+    mock_httpx.AsyncClient.return_value = mock_http_client
 
     mock_ws = AsyncMock()
     sent_texts = []
@@ -289,9 +287,11 @@ async def test_whisper_drain_waits_until_model_generating(mock_genai):
 
 @pytest.mark.asyncio
 @patch("router_service.live_session.genai")
-async def test_close_writes_transcript(mock_genai, tmp_path):
+@patch("router_service.live_session.httpx")
+async def test_close_writes_transcript(mock_httpx, mock_genai, tmp_path):
     mock_genai_inst, mock_session = _mock_gemini()
     mock_genai.Client.return_value = mock_genai_inst.Client.return_value
+    mock_httpx.AsyncClient.return_value = AsyncMock()
 
     session = _session(transcript_output_dir=str(tmp_path))
     session._gemini_session = mock_session
@@ -325,8 +325,7 @@ async def test_close_notifies_orchestrator_with_transcript(mock_httpx, mock_gena
 
     mock_http_client = AsyncMock()
     mock_http_client.post = mock_post
-    mock_httpx.AsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_http_client)
-    mock_httpx.AsyncClient.return_value.__aexit__ = AsyncMock(return_value=None)
+    mock_httpx.AsyncClient.return_value = mock_http_client
 
     session = _session(transcript_output_dir=str(tmp_path))
     session._gemini_session = mock_session
@@ -359,8 +358,7 @@ async def test_close_succeeds_even_if_orchestrator_unreachable(mock_httpx, mock_
 
     mock_http_client = AsyncMock()
     mock_http_client.post = mock_post
-    mock_httpx.AsyncClient.return_value.__aenter__ = AsyncMock(return_value=mock_http_client)
-    mock_httpx.AsyncClient.return_value.__aexit__ = AsyncMock(return_value=None)
+    mock_httpx.AsyncClient.return_value = mock_http_client
 
     session = _session(transcript_output_dir=str(tmp_path))
     session._gemini_session = mock_session
@@ -370,3 +368,147 @@ async def test_close_succeeds_even_if_orchestrator_unreachable(mock_httpx, mock_
 
     await session.close()
     assert len(list(tmp_path.glob("*.md"))) == 1
+
+
+@pytest.mark.asyncio
+@patch("router_service.live_session.genai")
+@patch("router_service.live_session.httpx")
+async def test_close_records_user_turn_before_concurrent_assistant_response(
+    mock_httpx, mock_genai, tmp_path
+):
+    # BUG-22: when Gemini's response arrives concurrently with the user's final turn,
+    # close() must write the user turn before the assistant response in history.
+    mock_genai_inst, mock_session = _mock_gemini()
+    mock_genai.Client.return_value = mock_genai_inst.Client.return_value
+    mock_httpx.AsyncClient.return_value = AsyncMock()
+
+    session = _session(transcript_output_dir=str(tmp_path))
+    session._gemini_session = mock_session
+    session._gemini_cm = MagicMock()
+    session._gemini_cm.__aexit__ = AsyncMock(return_value=None)
+    session._history = ["User: earlier turn", "Assistant: earlier response"]
+    session._input_buf = ["Not just yet. I'm going to end this session."]
+    session._output_buf = ["Understood."]
+
+    await session.close()
+
+    user_idx = next(i for i, e in enumerate(session._history) if "Not just yet" in e)
+    assistant_idx = next(i for i, e in enumerate(session._history) if "Understood" in e)
+    assert user_idx < assistant_idx, (
+        "User farewell must precede assistant response in transcript (BUG-22)"
+    )
+
+
+@pytest.mark.asyncio
+@patch("router_service.live_session.genai")
+@patch("router_service.live_session.httpx")
+async def test_turn_complete_records_user_turn_before_concurrent_assistant_response(
+    mock_httpx, mock_genai
+):
+    # BUG-22: when output_transcription for the assistant's response arrives before
+    # the user's turn_complete fires, the user turn must still appear first in history.
+    input_chunk = MagicMock()
+    input_chunk.data = None
+    input_chunk.server_content = MagicMock()
+    sc_in = input_chunk.server_content
+    sc_in.input_transcription = MagicMock(text="Goodbye for now.")
+    sc_in.output_transcription = None
+    sc_in.turn_complete = False
+    sc_in.interrupted = False
+
+    output_chunk = MagicMock()
+    output_chunk.data = None
+    output_chunk.server_content = MagicMock()
+    sc_out = output_chunk.server_content
+    sc_out.input_transcription = None
+    sc_out.output_transcription = MagicMock(text="Understood.")
+    sc_out.turn_complete = False
+    sc_out.interrupted = False
+
+    turn_complete_response = MagicMock()
+    turn_complete_response.data = None
+    turn_complete_response.server_content = MagicMock()
+    sc_tc = turn_complete_response.server_content
+    sc_tc.input_transcription = None
+    sc_tc.output_transcription = None
+    sc_tc.turn_complete = True
+    sc_tc.interrupted = False
+
+    mock_genai_inst, mock_session = _mock_gemini(
+        responses=[input_chunk, output_chunk, turn_complete_response]
+    )
+    mock_genai.Client.return_value = mock_genai_inst.Client.return_value
+    mock_httpx.AsyncClient.return_value = AsyncMock()
+
+    mock_ws = AsyncMock()
+    mock_ws.send_text = AsyncMock()
+    mock_ws.send_bytes = AsyncMock()
+    mock_ws.receive = AsyncMock(side_effect=asyncio.CancelledError)
+
+    session = _session()
+    session._gemini_session = mock_session
+
+    task = asyncio.create_task(session._gemini_to_browser(mock_ws))
+    await asyncio.sleep(0.05)
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+    user_idx = next(
+        (i for i, e in enumerate(session._history) if e.startswith("User:")), None
+    )
+    assistant_idx = next(
+        (i for i, e in enumerate(session._history) if e.startswith("Assistant:")), None
+    )
+    assert user_idx is not None and assistant_idx is not None
+    assert user_idx < assistant_idx, (
+        "User turn must precede concurrent assistant response in history (BUG-22)"
+    )
+
+
+@pytest.mark.asyncio
+@patch("router_service.live_session.genai")
+@patch("router_service.live_session.httpx")
+async def test_output_transcription_drops_whisper_pollution(mock_httpx, mock_genai):
+    # BUG-12: send_client_content(turn_complete=False) causes Gemini to echo whisper
+    # text as output_transcription. Verify these events are dropped — not written to
+    # _output_buf, _history, or sent to the browser as transcript frames.
+    whisper_response = MagicMock()
+    whisper_response.data = None
+    whisper_response.server_content = MagicMock()
+    whisper_response.server_content.input_transcription = None
+    sc = whisper_response.server_content
+    sc.output_transcription = MagicMock()
+    sc.output_transcription.text = "[WHISPER from DevCoach]: use TDD for this fix"
+    sc.turn_complete = False
+    sc.interrupted = False
+
+    mock_genai_inst, mock_session = _mock_gemini(responses=[whisper_response])
+    mock_genai.Client.return_value = mock_genai_inst.Client.return_value
+    mock_httpx.AsyncClient.return_value = AsyncMock()
+
+    mock_ws = AsyncMock()
+    sent_texts = []
+    mock_ws.send_text = AsyncMock(side_effect=lambda t: sent_texts.append(t))
+    mock_ws.send_bytes = AsyncMock()
+    mock_ws.receive = AsyncMock(side_effect=asyncio.CancelledError)
+
+    session = _session()
+    session._gemini_session = mock_session
+
+    task = asyncio.create_task(session._gemini_to_browser(mock_ws))
+    await asyncio.sleep(0.05)
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+    assert session._output_buf == []
+    assert not any("[WHISPER from" in entry for entry in session._history)
+    whisper_transcript_frames = [
+        t for t in sent_texts if "[WHISPER from" in t
+    ]
+    assert whisper_transcript_frames == []
