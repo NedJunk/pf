@@ -147,3 +147,136 @@ async def test_whisper_includes_wiki_context_in_prompt(mock_genai):
     call_args = mock_client.aio.models.generate_content.call_args
     prompt_text = call_args.kwargs["contents"][0]["parts"][0]["text"]
     assert "We use TDD" in prompt_text
+
+
+@patch("dev_coach.main.genai")
+def test_roadmap_loaded_from_env(mock_genai, tmp_path, monkeypatch):
+    mock_genai.Client.return_value = MagicMock()
+    roadmap_file = tmp_path / "backlog.md"
+    roadmap_file.write_text("# Backlog\n\n## Now\n- E4-M in progress")
+    monkeypatch.setenv("ROADMAP_PATH", str(roadmap_file))
+
+    from dev_coach.main import DevCoach
+    coach = DevCoach()
+    assert "E4-M" in coach._roadmap
+
+
+@patch("dev_coach.main.genai")
+def test_roadmap_empty_when_path_not_set(mock_genai, monkeypatch):
+    mock_genai.Client.return_value = MagicMock()
+    monkeypatch.delenv("ROADMAP_PATH", raising=False)
+
+    from dev_coach.main import DevCoach
+    coach = DevCoach()
+    assert coach._roadmap == ""
+
+
+@patch("dev_coach.main.genai")
+def test_roadmap_empty_when_file_missing(mock_genai, monkeypatch):
+    mock_genai.Client.return_value = MagicMock()
+    monkeypatch.setenv("ROADMAP_PATH", "/does/not/exist/backlog.md")
+
+    from dev_coach.main import DevCoach
+    coach = DevCoach()
+    assert coach._roadmap == ""
+
+
+@pytest.mark.asyncio
+@patch("dev_coach.main.genai")
+async def test_whisper_includes_roadmap_in_prompt(mock_genai, tmp_path, monkeypatch):
+    mock_resp = MagicMock()
+    mock_resp.text = "Consider addressing E4-M first."
+    mock_client = MagicMock()
+    mock_client.aio.models.generate_content = AsyncMock(return_value=mock_resp)
+    mock_genai.Client.return_value = mock_client
+
+    roadmap_file = tmp_path / "backlog.md"
+    roadmap_file.write_text("## Now\n- [ ] E4-M roadmap awareness")
+    monkeypatch.setenv("ROADMAP_PATH", str(roadmap_file))
+
+    from dev_coach.main import DevCoach
+    from expert_agent_base.base import WhisperContext
+    coach = DevCoach()
+    ctx = WhisperContext(
+        session_id="s1",
+        history=["User: what should I work on?", "Assistant: Good question."],
+        goals=["ship MVP"],
+        project_map=["voice-router"],
+    )
+    await coach.whisper(ctx)
+
+    prompt_text = mock_client.aio.models.generate_content.call_args.kwargs[
+        "contents"
+    ][0]["parts"][0]["text"]
+    assert "E4-M" in prompt_text
+
+
+@pytest.mark.asyncio
+@patch("dev_coach.main.genai")
+async def test_whisper_excludes_roadmap_section_when_not_set(mock_genai, monkeypatch):
+    mock_resp = MagicMock()
+    mock_resp.text = "NO_WHISPER"
+    mock_client = MagicMock()
+    mock_client.aio.models.generate_content = AsyncMock(return_value=mock_resp)
+    mock_genai.Client.return_value = mock_client
+    monkeypatch.delenv("ROADMAP_PATH", raising=False)
+
+    from dev_coach.main import DevCoach
+    from expert_agent_base.base import WhisperContext
+    coach = DevCoach()
+    ctx = WhisperContext(
+        session_id="s1",
+        history=["User: Hello", "Assistant: Hi"],
+        goals=["ship MVP"],
+        project_map=["voice-router"],
+    )
+    await coach.whisper(ctx)
+
+    prompt_text = mock_client.aio.models.generate_content.call_args.kwargs[
+        "contents"
+    ][0]["parts"][0]["text"]
+    assert "roadmap" not in prompt_text.lower()
+
+
+@pytest.mark.asyncio
+@patch("dev_coach.main.genai")
+async def test_synthesize_uses_roadmap_aware_prompt(mock_genai, tmp_path, monkeypatch):
+    mock_resp = MagicMock()
+    mock_resp.text = "NO_CHANGES"
+    mock_client = MagicMock()
+    mock_client.aio.models.generate_content = AsyncMock(return_value=mock_resp)
+    mock_genai.Client.return_value = mock_client
+
+    roadmap_file = tmp_path / "backlog.md"
+    roadmap_file.write_text("## Now\n- [ ] E4-M active")
+    monkeypatch.setenv("ROADMAP_PATH", str(roadmap_file))
+
+    from dev_coach.main import DevCoach
+    coach = DevCoach()
+    await coach._synthesize()
+
+    prompt_text = mock_client.aio.models.generate_content.call_args.kwargs[
+        "contents"
+    ][0]["parts"][0]["text"]
+    assert "E4-M active" in prompt_text
+    assert "epic" in prompt_text.lower()
+
+
+@pytest.mark.asyncio
+@patch("dev_coach.main.genai")
+async def test_synthesize_falls_back_to_base_when_no_roadmap(mock_genai, monkeypatch):
+    mock_resp = MagicMock()
+    mock_resp.text = "NO_CHANGES"
+    mock_client = MagicMock()
+    mock_client.aio.models.generate_content = AsyncMock(return_value=mock_resp)
+    mock_genai.Client.return_value = mock_client
+    monkeypatch.delenv("ROADMAP_PATH", raising=False)
+
+    from dev_coach.main import DevCoach
+    coach = DevCoach()
+    await coach._synthesize()
+
+    prompt_text = mock_client.aio.models.generate_content.call_args.kwargs[
+        "contents"
+    ][0]["parts"][0]["text"]
+    assert "ROADMAP" not in prompt_text
