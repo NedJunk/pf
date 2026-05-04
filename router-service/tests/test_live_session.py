@@ -512,3 +512,106 @@ async def test_output_transcription_drops_whisper_pollution(mock_httpx, mock_gen
         t for t in sent_texts if "[WHISPER from" in t
     ]
     assert whisper_transcript_frames == []
+
+
+def _make_response(input_text=None, output_text=None, turn_complete=False, interrupted=False):
+    r = MagicMock()
+    r.data = None
+    sc = MagicMock()
+    r.server_content = sc
+    sc.input_transcription = MagicMock(text=input_text) if input_text else None
+    sc.output_transcription = MagicMock(text=output_text) if output_text else None
+    sc.turn_complete = turn_complete
+    sc.interrupted = interrupted
+    return r
+
+
+@pytest.mark.asyncio
+@patch("router_service.live_session.genai")
+@patch("router_service.live_session.httpx")
+async def test_multipart_whisper_echo_continuation_is_dropped(mock_httpx, mock_genai):
+    # BUG-19: Gemini splits the whisper echo across multiple output_transcription chunks.
+    # The first chunk starts with "[WHISPER from" and is caught by the existing filter.
+    # The second chunk starts with the source name ("insight_engine]: ...") and must
+    # also be suppressed via the _in_whisper_echo state flag.
+    #
+    # In practice, Gemini sends the whisper echo as its own sequence terminated by a
+    # turn_complete; the real assistant response arrives in a separate sequence after
+    # the next user turn. This test covers the intra-echo suppression only.
+    chunk1 = _make_response(output_text="[WHISPER from ")
+    chunk2 = _make_response(output_text="insight_engine]: User is seeking tools for X")
+    echo_turn_complete = _make_response(turn_complete=True)
+    # After echo turn_complete, _in_whisper_echo resets; real response is unaffected.
+    real_response = _make_response(output_text="What specifically triggered that idea?")
+    real_turn_complete = _make_response(turn_complete=True)
+
+    mock_genai_inst, mock_session = _mock_gemini(
+        responses=[chunk1, chunk2, echo_turn_complete, real_response, real_turn_complete]
+    )
+    mock_genai.Client.return_value = mock_genai_inst.Client.return_value
+    mock_httpx.AsyncClient.return_value = AsyncMock()
+
+    mock_ws = AsyncMock()
+    sent_texts = []
+    mock_ws.send_text = AsyncMock(side_effect=lambda t: sent_texts.append(t))
+    mock_ws.send_bytes = AsyncMock()
+
+    session = _session()
+    session._gemini_session = mock_session
+
+    task = asyncio.create_task(session._gemini_to_browser(mock_ws))
+    await asyncio.sleep(0.05)
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+    assert "insight_engine" not in " ".join(session._output_buf)
+    assert "insight_engine" not in " ".join(session._history)
+    assert not any("insight_engine" in t for t in sent_texts if '"role": "assistant"' in t)
+    real_output = [e for e in session._history if "What specifically" in e]
+    assert real_output, "real assistant response after whisper echo turn_complete must be kept"
+
+
+@pytest.mark.asyncio
+@patch("router_service.live_session.genai")
+@patch("router_service.live_session.httpx")
+async def test_model_generating_not_cleared_on_empty_assistant_turn_complete(
+    mock_httpx, mock_genai
+):
+    # BUG-23: after an interrupted event, _output_buf is flushed immediately. If a
+    # subsequent turn_complete fires on the assistant branch with _output_buf already
+    # empty, _model_generating must NOT be cleared — clearing it would block
+    # _whisper_drain for the next real user turn.
+    user_chunk = _make_response(input_text="Tell me more.")
+    user_turn_complete = _make_response(input_text=None, turn_complete=True)
+    # Simulate: output starts arriving, user interrupts, then aborted turn_complete
+    output_chunk = _make_response(output_text="Sure, I can —")
+    interrupted_event = _make_response(interrupted=True)
+    aborted_turn_complete = _make_response(turn_complete=True)  # assistant branch, buf already empty
+
+    mock_genai_inst, mock_session = _mock_gemini(
+        responses=[user_chunk, user_turn_complete, output_chunk, interrupted_event, aborted_turn_complete]
+    )
+    mock_genai.Client.return_value = mock_genai_inst.Client.return_value
+    mock_httpx.AsyncClient.return_value = AsyncMock()
+
+    mock_ws = AsyncMock()
+    mock_ws.send_text = AsyncMock()
+    mock_ws.send_bytes = AsyncMock()
+
+    session = _session()
+    session._gemini_session = mock_session
+
+    task = asyncio.create_task(session._gemini_to_browser(mock_ws))
+    await asyncio.sleep(0.05)
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+    assert session._model_generating.is_set(), (
+        "_model_generating must remain set after an interrupted+empty assistant turn_complete (BUG-23)"
+    )

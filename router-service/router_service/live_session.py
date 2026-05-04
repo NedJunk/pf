@@ -48,6 +48,7 @@ class LiveSession:
         self._output_buf: list[str] = []
         self._whisper_queue: asyncio.Queue = asyncio.Queue()
         self._model_generating: asyncio.Event = asyncio.Event()
+        self._in_whisper_echo: bool = False
         self._tasks: list[asyncio.Task] = []
         self._closed = False
 
@@ -192,11 +193,19 @@ class LiveSession:
                     if sc.output_transcription and sc.output_transcription.text:
                         text = sc.output_transcription.text
                         if text.startswith("[WHISPER from"):
-                            # BUG-12: send_client_content(turn_complete=False) causes Gemini to
-                            # echo the injected whisper text as output_transcription. Drop it —
-                            # the whisper is already recorded in history by _whisper_drain.
+                            # BUG-12: Gemini echoes send_client_content(turn_complete=False)
+                            # injections as output_transcription. Drop the first chunk and set
+                            # _in_whisper_echo so subsequent chunks of the same echo are also
+                            # dropped (BUG-19: Gemini splits the echo across multiple chunks,
+                            # so only checking the first chunk's prefix is insufficient).
+                            self._in_whisper_echo = True
                             logger.debug(
-                                "[%s] dropping whisper output_transcription pollution: %r",
+                                "[%s] whisper echo start — dropping chunk: %r",
+                                self.session_id, text[:80],
+                            )
+                        elif self._in_whisper_echo:
+                            logger.debug(
+                                "[%s] whisper echo continuation — dropping chunk: %r",
                                 self.session_id, text[:80],
                             )
                         else:
@@ -209,6 +218,7 @@ class LiveSession:
                                 json.dumps({"type": "transcript", "role": "assistant", "text": text})
                             )
                     if sc.turn_complete:
+                        self._in_whisper_echo = False
                         # BUG-07 diagnostic: if branch=user and output_buf is non-empty,
                         # the Gemini response began arriving before turn_complete — this is
                         # the race condition that caused inverted transcript ordering (BUG-22).
@@ -229,8 +239,14 @@ class LiveSession:
                             self._flush_output_buf()
                             self._model_generating.set()
                         else:
-                            self._model_generating.clear()
+                            # Only clear _model_generating if this assistant turn produced
+                            # output. If _output_buf is empty, the interrupted handler already
+                            # flushed it — clearing here would block _whisper_drain for the
+                            # next real user turn (BUG-23).
+                            had_output = bool(self._output_buf)
                             self._flush_output_buf()
+                            if had_output:
+                                self._model_generating.clear()
                         await browser_ws.send_text(json.dumps({"type": "turn_complete"}))
                         await self._post_turn_event()
                     if getattr(sc, "interrupted", False):
