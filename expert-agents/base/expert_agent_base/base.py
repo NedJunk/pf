@@ -52,6 +52,38 @@ CONVERSATION CONTEXT:
 Output up to 5 filenames, one per line. No explanation, no numbering.
 If nothing is relevant, output exactly: NONE"""
 
+_SYNTHESIZE_PROMPT = """\nYou are performing a Karpathy-style knowledge compression pass on an expert agent wiki.
+
+WIKI INDEX:
+{index}
+
+WIKI PAGES:
+{pages}
+
+RECENT INGEST LOG:
+{log}
+
+Your task:
+1. Identify recurring patterns and redundant entries across pages
+2. Merge overlapping content -- one dense, precise entry beats three vague ones
+3. Sharpen descriptions -- remove filler, tighten language
+4. Rewrite pages with genuinely new compressed content; skip pages already tight
+5. Update the index to reflect any new or rewritten pages
+
+Write only pages that changed:
+
+--- PAGE: <filename.md> ---
+<full markdown page content>
+--- END PAGE ---
+
+Then the updated index:
+
+--- INDEX ---
+<full index.md content>
+--- INDEX END ---
+
+If nothing needs compression, output exactly: NO_CHANGES"""
+
 
 @dataclass
 class WhisperContext:
@@ -133,6 +165,45 @@ class ExpertAgentBase(ABC):
             logger.warning("_query_wiki failed: %s", exc)
             return ""
 
+    async def _synthesize(self) -> None:
+        """Default Karpathy-style wiki compression. Override for domain-specific behaviour."""
+        index = self._wiki.read_index()
+        page_names = self._wiki.list_pages()
+        pages_text = ""
+        for name in page_names:
+            try:
+                pages_text += "\n\n### " + name + "\n" + self._wiki.read_page(name)
+            except (FileNotFoundError, OSError):
+                pass
+        log = self._wiki.read_log()
+        prompt = _SYNTHESIZE_PROMPT.format(
+            index=index,
+            pages=pages_text.strip(),
+            log=log,
+        )
+        raw = await self._generate(prompt)
+        if raw.strip() == "NO_CHANGES":
+            return
+        pages, new_index = parse_ingest_response(raw)
+        for filename, content in pages:
+            self._wiki.write_page(filename, content)
+        if new_index:
+            self._wiki.write_index(new_index)
+        date = datetime.date.today().isoformat()
+        self._wiki.append_log("\n## [" + date + "] synthesize")
+
+    async def _safe_synthesize(self) -> None:
+        """Error-isolating wrapper around _synthesize, matching _safe_ingest pattern."""
+        try:
+            await self._synthesize()
+        except Exception as exc:
+            logger.error("Wiki synthesis failed: %s", exc)
+            date = datetime.date.today().isoformat()
+            try:
+                self._wiki.append_log("\n## [" + date + "] FAILED synthesize | " + str(exc))
+            except Exception:
+                pass
+
     async def _safe_ingest(self, session_id: str, transcript: str) -> None:
         try:
             await self._ingest_session(session_id, transcript)
@@ -189,6 +260,11 @@ class ExpertAgentBase(ABC):
         async def whisper_endpoint(body: dict, background_tasks: BackgroundTasks):
             background_tasks.add_task(self._handle_whisper, body)
             return {}
+
+        @app.post("/synthesize")
+        async def synthesize_endpoint():
+            await self._safe_synthesize()
+            return {"status": "ok"}
 
         @app.get("/health")
         async def health():

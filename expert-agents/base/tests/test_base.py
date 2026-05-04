@@ -200,3 +200,164 @@ def test_ingest_endpoint_returns_202():
 def test_whisper_context_has_wiki_context_field():
     ctx = WhisperContext(session_id="s1", history=[], goals=[], project_map=[])
     assert ctx.wiki_context == ""
+
+
+# ── E4-L: /synthesize endpoint ───────────────────────────────────────────────
+
+_SYNTHESIZE_RESPONSE = """
+--- PAGE: patterns.md ---
+# Patterns
+
+Compressed pattern content here.
+--- END PAGE ---
+
+--- INDEX ---
+# Wiki Index
+
+- patterns.md: Compressed patterns
+--- INDEX END ---
+"""
+
+
+class SynthesizingAgent(ExpertAgentBase):
+    """Agent whose _generate returns a pre-canned synthesis response."""
+    def __init__(self, generate_response: str = _SYNTHESIZE_RESPONSE):
+        super().__init__(model="test-model")
+        self._response = generate_response
+
+    async def _generate(self, prompt: str) -> str:
+        return self._response
+
+    async def whisper(self, context: WhisperContext) -> WhisperResponse:
+        return WhisperResponse(source="Test", message="hello", confidence=0.9)
+
+
+class CustomSynthesizeAgent(ExpertAgentBase):
+    """Agent that overrides _synthesize with custom behavior."""
+    def __init__(self):
+        super().__init__(model="test-model")
+        self.synthesize_called = False
+
+    async def _generate(self, prompt: str) -> str:
+        return ""
+
+    async def whisper(self, context: WhisperContext) -> WhisperResponse:
+        return WhisperResponse(source="Test", message="hi", confidence=0.9)
+
+    async def _synthesize(self) -> None:
+        self.synthesize_called = True
+
+
+class FailingSynthesizeAgent(ExpertAgentBase):
+    """Agent whose _generate raises during synthesis."""
+    async def _generate(self, prompt: str) -> str:
+        raise RuntimeError("LLM unavailable")
+
+    async def whisper(self, context: WhisperContext) -> WhisperResponse:
+        return WhisperResponse(source="Test", message="hi", confidence=0.9)
+
+
+def test_synthesize_endpoint_returns_200():
+    """POST /synthesize returns 200 with status ok."""
+    client = TestClient(SynthesizingAgent().app)
+    resp = client.post("/synthesize")
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "ok"}
+
+
+def test_synthesize_endpoint_updates_wiki_pages(tmp_path, monkeypatch):
+    """POST /synthesize writes compressed pages back to the wiki."""
+    monkeypatch.setenv("WIKI_DIR", str(tmp_path / "wiki"))
+    monkeypatch.setenv("WIKI_SCHEMA_PATH", str(tmp_path / "schema.md"))
+    agent = SynthesizingAgent()
+    # Give the wiki something to synthesize
+    agent._wiki.write_page("old.md", "# Old\nVerbose content here.")
+    agent._wiki.write_index("# Wiki Index\n\n- old.md: Verbose content\n")
+
+    client = TestClient(agent.app)
+    resp = client.post("/synthesize")
+    assert resp.status_code == 200
+
+    # patterns.md should have been written
+    page = agent._wiki.read_page("patterns.md")
+    assert "Compressed pattern content" in page
+
+    # Index should be updated
+    index = agent._wiki.read_index()
+    assert "patterns.md" in index
+
+
+def test_synthesize_endpoint_is_synchronous():
+    """POST /synthesize blocks until complete (not fire-and-forget)."""
+    completed = []
+
+    class TrackingAgent(ExpertAgentBase):
+        async def _generate(self, prompt: str) -> str:
+            completed.append(True)
+            return _SYNTHESIZE_RESPONSE
+
+        async def whisper(self, context: WhisperContext) -> WhisperResponse:
+            return WhisperResponse(source="Test", message="hi", confidence=0.9)
+
+    client = TestClient(TrackingAgent(model="m").app)
+    resp = client.post("/synthesize")
+    assert resp.status_code == 200
+    # If synchronous, completed should be populated before the response returns
+    assert len(completed) == 1
+
+
+def test_synthesize_agent_can_override_synthesize_hook():
+    """Agents can override _synthesize() for domain-specific behavior."""
+    agent = CustomSynthesizeAgent()
+    client = TestClient(agent.app)
+    resp = client.post("/synthesize")
+    assert resp.status_code == 200
+    assert agent.synthesize_called is True
+
+
+def test_synthesize_safe_wrapper_catches_errors():
+    """POST /synthesize returns 200 even when _synthesize raises."""
+    client = TestClient(FailingSynthesizeAgent(model="m").app)
+    resp = client.post("/synthesize")
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "ok"}
+
+
+def test_synthesize_prompt_includes_wiki_content(tmp_path, monkeypatch):
+    """Default _synthesize passes wiki index and pages into the generate prompt."""
+    monkeypatch.setenv("WIKI_DIR", str(tmp_path / "wiki"))
+    monkeypatch.setenv("WIKI_SCHEMA_PATH", str(tmp_path / "schema.md"))
+
+    prompts_seen = []
+
+    class CapturingAgent(ExpertAgentBase):
+        async def _generate(self, prompt: str) -> str:
+            prompts_seen.append(prompt)
+            return ""
+
+        async def whisper(self, context: WhisperContext) -> WhisperResponse:
+            return WhisperResponse(source="Test", message="hi", confidence=0.9)
+
+    agent = CapturingAgent(model="m")
+    agent._wiki.write_page("topic.md", "# Topic\nSome content.")
+    agent._wiki.write_index("# Wiki Index\n\n- topic.md: Topic notes\n")
+
+    client = TestClient(agent.app)
+    client.post("/synthesize")
+
+    assert len(prompts_seen) == 1
+    assert "topic.md" in prompts_seen[0]
+    assert "Wiki Index" in prompts_seen[0]
+
+
+def test_synthesize_log_appended_on_success(tmp_path, monkeypatch):
+    """Default synthesis appends a log entry on completion."""
+    monkeypatch.setenv("WIKI_DIR", str(tmp_path / "wiki"))
+    monkeypatch.setenv("WIKI_SCHEMA_PATH", str(tmp_path / "schema.md"))
+
+    agent = SynthesizingAgent()
+    client = TestClient(agent.app)
+    client.post("/synthesize")
+
+    log = agent._wiki.read_log()
+    assert "synthesize" in log
