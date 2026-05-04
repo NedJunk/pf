@@ -280,3 +280,113 @@ async def test_synthesize_falls_back_to_base_when_no_roadmap(mock_genai, monkeyp
         "contents"
     ][0]["parts"][0]["text"]
     assert "ROADMAP" not in prompt_text
+
+
+# --- BUG-17: whisper deduplication ---
+
+@pytest.mark.asyncio
+@patch("dev_coach.main.genai")
+async def test_near_duplicate_whisper_is_suppressed(mock_genai):
+    # BUG-17: DevCoach was sending near-identical whispers on consecutive turns.
+    # The Jaccard similarity filter must suppress a second whisper whose word overlap
+    # with the first exceeds the threshold.
+    mock_resp = MagicMock()
+    mock_resp.text = "Write a test before fixing the bug to lock in expected behavior."
+    mock_client = MagicMock()
+    mock_client.aio.models.generate_content = AsyncMock(return_value=mock_resp)
+    mock_genai.Client.return_value = mock_client
+
+    from dev_coach.main import DevCoach
+    from expert_agent_base.base import WhisperContext
+    coach = DevCoach()
+    ctx = WhisperContext(
+        session_id="dup-session",
+        history=["User: fixing a bug", "Assistant: tell me more"],
+        goals=["ship MVP"],
+        project_map=["voice-router"],
+    )
+
+    first = await coach.whisper(ctx)
+    assert first is not None
+
+    second = await coach.whisper(ctx)
+    assert second is None, "near-duplicate whisper on same session must be suppressed"
+
+
+@pytest.mark.asyncio
+@patch("dev_coach.main.genai")
+async def test_distinct_whisper_is_not_suppressed(mock_genai):
+    # BUG-17: a genuinely different suggestion must still be delivered even after
+    # a previous whisper was sent in the same session.
+    first_resp = MagicMock()
+    first_resp.text = "Write a test before fixing the bug."
+    second_resp = MagicMock()
+    second_resp.text = "Consider extracting the retry logic into a helper function."
+    mock_client = MagicMock()
+    mock_client.aio.models.generate_content = AsyncMock(
+        side_effect=[first_resp, second_resp]
+    )
+    mock_genai.Client.return_value = mock_client
+
+    from dev_coach.main import DevCoach
+    from expert_agent_base.base import WhisperContext
+    coach = DevCoach()
+
+    def _ctx(sid="distinct-session"):
+        return WhisperContext(
+            session_id=sid,
+            history=["User: working on auth module", "Assistant: tell me more"],
+            goals=["ship MVP"],
+            project_map=["voice-router"],
+        )
+
+    first = await coach.whisper(_ctx())
+    assert first is not None
+
+    second = await coach.whisper(_ctx())
+    assert second is not None, "distinct suggestion must not be suppressed"
+
+
+@pytest.mark.asyncio
+@patch("dev_coach.main.genai")
+async def test_recent_suggestions_injected_into_prompt(mock_genai):
+    # BUG-17: prompt-side deduplication — recent whispers must be listed in the
+    # prompt so the model can avoid repeating itself proactively.
+    mock_resp = MagicMock()
+    mock_resp.text = "Consider breaking the work into smaller commits."
+    mock_client = MagicMock()
+    mock_client.aio.models.generate_content = AsyncMock(return_value=mock_resp)
+    mock_genai.Client.return_value = mock_client
+
+    from dev_coach.main import DevCoach
+    from expert_agent_base.base import WhisperContext
+    coach = DevCoach()
+    sid = "prompt-injection-session"
+    coach._session_whispers[sid] = ["Write a test before the fix."]
+
+    ctx = WhisperContext(
+        session_id=sid,
+        history=["User: debugging now", "Assistant: what specifically?"],
+        goals=["ship MVP"],
+        project_map=["voice-router"],
+    )
+    await coach.whisper(ctx)
+
+    prompt_text = mock_client.aio.models.generate_content.call_args.kwargs[
+        "contents"
+    ][0]["parts"][0]["text"]
+    assert "Write a test before the fix" in prompt_text, (
+        "recent whisper history must appear in the prompt"
+    )
+
+
+@patch("dev_coach.main.genai")
+def test_jaccard_similarity_edge_cases(mock_genai):
+    mock_genai.Client.return_value = MagicMock()
+    from dev_coach.main import _jaccard
+
+    assert _jaccard("", "anything") == 0.0
+    assert _jaccard("foo bar", "foo bar") == 1.0
+    assert _jaccard("foo", "bar") == 0.0
+    overlap = _jaccard("write a test for the fix", "test the fix before writing")
+    assert 0.0 < overlap < 1.0

@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from pathlib import Path
 
 from google import genai
@@ -8,6 +9,16 @@ from expert_agent_base.base import ExpertAgentBase, WhisperContext, WhisperRespo
 logger = logging.getLogger(__name__)
 
 _ROADMAP_CHAR_LIMIT = 4000
+_SIMILARITY_THRESHOLD = 0.7
+_SESSION_WHISPER_MEMORY = 10
+
+
+def _jaccard(a: str, b: str) -> float:
+    words_a = set(re.findall(r"\w+", a.lower()))
+    words_b = set(re.findall(r"\w+", b.lower()))
+    if not words_a or not words_b:
+        return 0.0
+    return len(words_a & words_b) / len(words_a | words_b)
 
 _PROMPT = """\
 You are a development process coach embedded in a voice-first development session.
@@ -21,7 +32,7 @@ Rules:
 
 Session goals: {goals}
 Project context: {project_map}
-{roadmap_section}{schema_section}{wiki_context}
+{recent_section}{roadmap_section}{schema_section}{wiki_context}
 Recent conversation:
 {history_tail}
 
@@ -83,6 +94,7 @@ class DevCoach(ExpertAgentBase):
         super().__init__(model=model)
         self._client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
         self._roadmap = _load_roadmap(os.environ.get("ROADMAP_PATH", ""))
+        self._session_whispers: dict[str, list[str]] = {}
 
     async def _generate(self, prompt: str) -> str:
         response = await self._client.aio.models.generate_content(
@@ -127,6 +139,14 @@ class DevCoach(ExpertAgentBase):
         if len(context.history) < 2:
             return None
 
+        recent = self._session_whispers.get(context.session_id, [])
+        recent_section = (
+            "Suggestions already given this session — do not repeat or rephrase these:\n"
+            + "\n".join(f"- {w}" for w in recent[-5:])
+            + "\n\n"
+            if recent
+            else ""
+        )
         roadmap_section = (
             f"Current roadmap/backlog state:\n{self._roadmap}\n\n"
             if self._roadmap
@@ -141,6 +161,7 @@ class DevCoach(ExpertAgentBase):
         prompt = _PROMPT.format(
             goals="; ".join(context.goals) or "None",
             project_map="; ".join(context.project_map) or "None",
+            recent_section=recent_section,
             roadmap_section=roadmap_section,
             schema_section=schema_section,
             wiki_context=wiki_section,
@@ -150,6 +171,19 @@ class DevCoach(ExpertAgentBase):
         text = await self._generate(prompt)
         if text.startswith("NO_WHISPER"):
             return None
+
+        for prev in recent:
+            if _jaccard(text, prev) >= _SIMILARITY_THRESHOLD:
+                logger.debug(
+                    "DevCoach suppressed near-duplicate whisper (jaccard=%.2f): %r",
+                    _jaccard(text, prev), text[:80],
+                )
+                return None
+
+        session_history = self._session_whispers.setdefault(context.session_id, [])
+        session_history.append(text)
+        if len(session_history) > _SESSION_WHISPER_MEMORY:
+            session_history.pop(0)
 
         return WhisperResponse(source="DevCoach", message=text, confidence=0.8)
 
