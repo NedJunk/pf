@@ -67,7 +67,7 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 
 - [x] **BUG-20 — router affirmation pattern persists** — fixed (2026-05-04): behavioral contract now has an explicit NEVER directive covering structural patterns like "adding X makes sense", "makes sense", "absolutely", "that's a good idea" — not just the specific phrases listed before.
 
-- [ ] **BUG-21 — whisper delivery rate dropped to 37.5%** — session 1f89e5e2 (2026-05-04) recorded 24 acks but only 9 deliveries (37.5%), down from 91.7% the prior session; 15 acknowledged dispatches had no delivery callback; investigate whether the router-service callback endpoint silently drops requests under load during longer sessions.
+- [ ] **BUG-21 — whisper delivery rate dropped to 37.5%** — session 1f89e5e2 (2026-05-04) recorded 24 acks but only 9 deliveries (37.5%), down from 91.7% the prior session; 15 acknowledged dispatches had no delivery callback. **Update (session 7a263bea, 2026-05-04):** delivery was 16/16 (100%) in a 16-turn session — may be load-related or incidentally fixed by BUG-03 connection pooling. Needs a longer session (24+ turns) to confirm resolution before closing.
 
 ---
 
@@ -92,6 +92,10 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 - [ ] **E4-K — Eval: autonomous vs. instructed research mode** — compare trigger modes across sessions: relevance of autonomously-inferred topics vs. explicitly requested ones, whisper acceptance rate, user follow-up rate. Feeds into E1 evalset.
 
 - [x] **E4-L — Build: `/synthesize` endpoint on ExpertAgentBase** — delivered (2026-05-04): `POST /synthesize` added to base ABC with default Karpathy-style implementation (wiki compression, ingest log awareness). DevCoach overrides with roadmap-aware synthesis via `ROADMAP_PATH` env var. Agents without an override get the default. Absorbed E4-G.
+
+- [ ] **BUG-24 — DevCoach whispers reference hallucinated personas and invented patterns** — session 7a263bea (2026-05-04): DevCoach suggested "addressing the Project Manager persona", using "Live Timestamp Isolation", "Logging Extraction", "Validation Passphrase", and "Bug Validation Patterns wiki" — none of which exist in the project. Root cause likely: `ROADMAP_PATH` was not wired in `docker-compose.yml`, so E4-M ran with no backlog context and the model filled the void with hallucinated patterns. Fix: mount backlog and set `ROADMAP_PATH` in dev-coach service config; verify whisper quality in next session.
+
+- [ ] **BUG-25 — Router spoke before user's first turn (session opener regression)** — transcript 7a263bea (2026-05-04) shows `A: Which project or domain` preceding the user's first `Hi, I'm verifying...` line. Either the BUG-13 fix was not deployed (containers running old code) or the fix is incomplete for this opener path. Verify after container rebuild; if it persists, re-examine behavioral contract session opener rule.
 
 - [ ] **E4-E** — Moved to Now section (Fan-Out Problem fix).
 
@@ -183,6 +187,8 @@ Note: the transcript labeling workflow (E1-C below) was previously blocked by UU
 - [ ] **E6-C2 — Build: debug mode activation + logging** — implement passphrase detection and verbose logging mode. No agent swap yet — this delivers the logging half independently.
 
 - [ ] **E6-C3 — Build: debug agent** — implement the debug-aware agent loaded on passphrase activation, informed by the E6-C1 design. Depends on E6-C2.
+
+- [ ] **E6-K2 — Feature: separate audio-data log gate (`LOG_AUDIO` env var)** — debug logging at `LOG_LEVEL=DEBUG` includes raw audio byte data, making logs excessively verbose and hard to parse for event-sequence diagnostics. Add a `LOG_AUDIO=true` env var (default false) to gate audio-buffer log lines independently from event-sequence debug logging. Raised in session 7a263bea (2026-05-04).
 
 - [ ] **E6-K — Investigate: ingest call count 0 despite 8 turns processed** — session a23a2089 (2026-04-30) shows turns processed: 8, whisper acks: 8, but ingest calls: 0. Determine whether this is a metric instrumentation gap in `session-review.sh` (log parser not correctly counting from container log output vs. file) or a real failure in the ingest path. May be related to the absence of a log file — debug logging was active via containers only, and the parser may assume file-based logs.
 

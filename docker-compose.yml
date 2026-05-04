@@ -45,5 +45,7 @@ services:
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - DEV_COACH_MODEL=${DEV_COACH_MODEL:-gemini-2.0-flash}
+      - ROADMAP_PATH=/app/backlog.md
     volumes:
       - ./expert-agents/dev-coach/wiki:/app/wiki
+      - ./docs/backlog.md:/app/backlog.md:ro
