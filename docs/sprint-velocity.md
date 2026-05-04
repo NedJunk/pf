@@ -41,12 +41,12 @@ Tracks effort per sprint item by estimated story points, Claude tokens consumed,
 
 | Item | Description | Est | Tokens | Time | Status |
 |---|---|---|---|---|---|
-| BUG-23 | Reproduce + fix assistant stopped responding | 3 | — | — | open |
-| BUG-19 + E6-I | insight_engine transcript pollution + origin investigation | 3 | — | — | open |
-| BUG-21 | Investigate whisper delivery drop to 37.5% | 2 | — | — | open |
-| BUG-17 | DevCoach whisper deduplication / decay logic | 3 | — | — | open |
-| BUG-20 | Prohibit affirmation framing in behavioral contract | 1 | — | — | open |
-| BUG-18 *(stretch)* | Prohibit internal codes in spoken responses | 1 | — | — | open |
+| BUG-23 | Reproduce + fix assistant stopped responding | 3 | — | — | done |
+| BUG-19 + E6-I | insight_engine transcript pollution + origin investigation | 3 | — | — | done |
+| BUG-17 | DevCoach whisper deduplication / decay logic | 3 | — | — | done |
+| BUG-20 | Prohibit affirmation framing in behavioral contract | 1 | — | — | done |
+| BUG-21 | Investigate whisper delivery drop to 37.5% | 2 | — | — | carried |
+| BUG-18 *(stretch)* | Prohibit internal codes in spoken responses | 1 | — | — | done |
 | E4-E *(stretch)* | Design: smarter orchestrator routing / fan-out | 2 | — | — | open |
 
 **Sprint total:** committed 12 pts / stretch 3 pts
@@ -58,4 +58,4 @@ Tracks effort per sprint item by estimated story points, Claude tokens consumed,
 | Sprint | Committed | Delivered | Stretch Delivered | Tokens (total) | Time (total) |
 |---|---|---|---|---|---|
 | 1 — M2 Kickoff | 12 | 12 | 3 | — | 00:31 |
-| 2 — Core Stability | 12 | — | — | — | — |
+| 2 — Core Stability | 12 | 10 (carried: BUG-21) | 1 (BUG-18) | — | — |
