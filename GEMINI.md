@@ -115,7 +115,7 @@ The voice agent is named **Kai**. Its behavioral contract (`behavioral_contract.
 - Never speaks, repeats, or acknowledges whisper content
 - Never asks closing questions ("Is there anything else?")
 - If asked its name, says "Kai" and continues — does not refer to itself as "the router"
-- Relaying agent insights to the developer via whisper is explicitly carved out as facilitation (not analysis)
+- **Whisper handling:** Do not state insights directly. Use the silent whisper context to form better, more targeted questions for the user, but do not reveal that you received a whisper or state the insight as a fact.
 
 ---
 
@@ -123,24 +123,28 @@ The voice agent is named **Kai**. Its behavioral contract (`behavioral_contract.
 
 ### Now (priority order)
 
-1. **E4-H — Design: researcher agent** — second expert agent using Gemini Deep Research. Async background research triggered autonomously (inferred from transcript) or explicitly (user request); findings persisted in agent wiki; relevant excerpts whispered into live sessions. See E4-I/J/K for build items.
+*Core Stability Milestone complete. Remaining work: routing efficiency.*
 
-2. **E4-L — Build: `/synthesize` endpoint on ExpertAgentBase** — add `POST /synthesize` to the base ABC with a default Karpathy-style implementation: read agent wiki + recent ingest history, distill patterns, compress knowledge, write updated wiki back. Agents override for domain-specific synthesis; those that don't get the default. Called at agent startup and on demand.
+1. **E4-E — Design: agent routing improvements (Fix Fan-Out Problem)** — The orchestrator currently POSTs to every agent on every turn, which will not scale. Wire up the `select_expert` stub before adding more agents.
 
-### Open Bugs (not yet fixed)
+### Recently Resolved (2026-05-03)
 
-- **BUG-03** — httpx client created per call, no connection pooling. Five sites: `turn_handler._call_agent`, whisper-back loop in `turn_handler.handle_turn`, `session_handler._call_ingest`, `live_session._post_turn_event`, `live_session._post_session_close`. Fix: shared client via FastAPI lifespan. Not causing failures. **Explicitly deferred** — do not address unless other Now items are clear.
+- **BUG-12** — Transcript pollution from whisper injections — fixed: `_gemini_to_browser` drops `output_transcription` events whose text starts with `[WHISPER from`.
+- **BUG-13** — Router opening with fallback phrase — fixed: `send_realtime_input` removed from `connect()`; behavioral contract updated with explicit "wait for user's first input" instruction.
+- **BUG-15** — Prompt contradiction on whisper handling — fixed: behavioral contract now says "use the insight to ask a more targeted question"; `transcripts.py` ground truth updated to show silent incorporation.
+- **BUG-03** — httpx client created per call — fixed: `AsyncClient` stored as `LiveSession._http_client`, reused across all turns, closed in `close()`.
 
-- **BUG-12** — whisper injections pollute assistant transcript entries. `send_client_content(turn_complete=False)` suppresses audio but Gemini emits `output_transcription` events for injected text; router records these as `"A:"` entries. Audio is not vocalized (BUG-10 audio fix intact). The transcript pollution is the remaining issue.
+### Deprioritized (Moved to Epic 4)
 
-- **BUG-13** — router opened with `"I am functioning correctly."` instead of a facilitator opener in session e98fae54. Possible BUG-04 regression or initialization timing issue.
+- **E4-H — Design: researcher agent** — second expert agent using Gemini Deep Research.
+- **E4-L — Build: `/synthesize` endpoint on ExpertAgentBase**
 
 ### Milestone Map
 
 | Milestone | Status | Focus |
 |---|---|---|
 | M0 | Done | Foundation |
-| M1 | Tail in progress | Reliable Core — BUG-12, BUG-13 remain |
+| M1 | Done | Reliable Core |
 | M2 | Next | Expert Ecosystem + Eval Foundation (E4-L, researcher agent E4-H/I/J/K, E1-A/B/C) |
 | M3 | Future | Knowledge Layer Alpha |
 | M4 | Future | Expert Ecosystem Expansion + smarter routing |

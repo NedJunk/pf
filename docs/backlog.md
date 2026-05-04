@@ -6,11 +6,23 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 
 ## Now
 
+*Core Stability Milestone: Prioritize resolving transcript pollution, routing inefficiency, and prompt contradictions before adding heavy async agents.*
+
+- [ ] **BUG-23 — Assistant stopped responding (suspected BUG-22 regression)** — user reported assistant became unresponsive in the session immediately following the BUG-22 fix (2026-05-04). Two changes are suspects: (1) `_flush_output_buf()` now called in the `interrupted` handler — if Gemini fires an interrupted event followed by a `turn_complete` for the aborted assistant turn, the assistant branch clears `_model_generating`; if the user's `input_transcription` chunks have already begun arriving at that point, the interrupted assistant's `turn_complete` may fire as a user-branch event, consuming `_input_buf` prematurely and causing double-turn or silent-drop behaviour; (2) `_flush_output_buf()` moved after user turn recording in `turn_complete` — needs verification that `_model_generating.set()` still fires reliably when `_output_buf` is non-empty at that point. First step: reproduce with `LOG_LEVEL=DEBUG` and inspect `turn_complete` branch/buf log lines across the failing session.
+
+- [x] **BUG-22 — Fix transcript turn ordering inversion** — fixed (2026-05-04): race condition in `live_session.py` — when Gemini begins emitting `output_transcription` (assistant response) before the user's `turn_complete` fires, `_flush_output_buf()` was called before the user turn was appended to `_history`, producing inverted order. Fix: record user turn first in both the `turn_complete` handler and `close()`. Also added immediate flush in the `interrupted` handler so stale partial output never survives into a later user turn. Two regression tests added. Root cause confirmed by static analysis session 1f89e5e2 (2026-05-04).
+
+- [x] **BUG-12 — Fix transcript pollution from whisper injections** — fixed (2026-05-03): `_gemini_to_browser` now filters `output_transcription` events whose text starts with `[WHISPER from` — these are Gemini echoing the `send_client_content` injection back as transcription. Filtered events are dropped before reaching `_output_buf` or the browser transcript feed.
+
+- [x] **BUG-13 — Fix router opening with fallback phrase** — fixed (2026-05-03): `send_realtime_input(text=...)` was already removed from `connect()` (test `test_connect_opens_gemini_session_without_context_injection` confirms). Added explicit "do not generate audio proactively at session start" instruction to `behavioral_contract.py` to prevent Gemini interpreting the session-opener rule as a proactive greeting.
+
+- [x] **BUG-15 — Fix prompt contradiction on whisper handling** — fixed (2026-05-03): updated `behavioral_contract.py` whisper section to say "use the insight to ask a more targeted or informed question — let the whisper guide where you probe next, not what you say." Updated `transcripts.py` ground-truth fixture to show silent incorporation (not relay) and corrected `REQUIRED_BEHAVIORS` description.
+
+- [ ] **E4-E — Design: agent routing improvements (Fix Fan-Out Problem)** — Smarter orchestrator routing beyond broadcast-all. The orchestrator currently POSTs to every agent on every turn, which will not scale. Wire up the `select_expert` stub before adding more agents.
+
+- [x] **BUG-03 — Fix httpx client created per call (Connection pooling)** — fixed (2026-05-03): `httpx.AsyncClient()` moved to `LiveSession.__init__` as `self._http_client`; closed via `aclose()` at the end of `close()`. Both `_post_turn_event` and `_post_session_close` now reuse the session-scoped client — no per-call socket churn.
+
 - [x] **E6-G — Build: `/session-review` shorthand skill** — delivered (2026-04-30): `.claude/commands/session-review.md` chains `session-review.sh` with session-type detection (auto or explicit) and a modular analysis pipeline. New session types and analysis modules can be added by editing the registry table and module library sections in the command file.
-
-- [ ] **E4-H — Design: researcher agent** — second expert agent using Gemini Deep Research. Scope: async background research triggered autonomously (inferred from transcript) or explicitly (user request); findings persisted in agent wiki; relevant excerpts whispered into live sessions. Both trigger modes instrumented for evaluation. Gaps and in-progress status are first-class, not failures. See E4-I/J/K for build items.
-
-- [ ] **E4-L — Build: `/synthesize` endpoint on ExpertAgentBase** — add `POST /synthesize` to the base ABC with a default Karpathy-style implementation: read agent wiki + recent ingest history, distill patterns, compress knowledge, write updated wiki back. Agents override for domain-specific synthesis; those that don't get the default. Called at agent startup and on demand. Absorbed E4-G. Verbal "Now" priority confirmation: session a23a2089 (2026-04-30).
 
 ---
 
@@ -19,7 +31,7 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 - [x] **BUG-00 — voice interruption broken** — confirmed fixed in session f1f1fdda (2026-04-29).
 - [x] **BUG-01** — **fixed** (2026-04-29, session c20adebf): async callback pattern eliminated all timeouts. 11 turns, zero `ReadTimeout` errors, 7 of 10 whispers delivered. Two late callbacks arrived post-close (404) — expected behavior of async pattern. See commit f3a1dbf.
 - [x] **BUG-02 — router refuses to relay context to whisper agents** — fixed (2026-04-29): updated `behavioral_contract.py` to carve out in-session agent relay as facilitation and added tone directive prohibiting affirmations. 30 tests passing.
-- [ ] **BUG-03 — httpx client created per call (no connection pooling)** — identified in architecture review (2026-04-29). Five sites: `turn_handler._call_agent`, whisper-back loop in `turn_handler.handle_turn`, `session_handler._call_ingest`, `live_session._post_turn_event`, `live_session._post_session_close`. Fix is mechanical — share a single client via FastAPI lifespan. Not causing visible failures. **Explicitly deferred** — schedule as a warmup task when other Now items are clear; do not let it accumulate further.
+- [x] **BUG-03** — Fixed. See Now section.
 
 - [x] **BUG-04 — router stock opener ignores user-supplied context** — confirmed fixed in session 8d775b26 (2026-04-29). Originally confirmed in session 0185cc4f (2026-04-29): user opened with a complete context statement ("I'm doing some exploratory user testing right now. You're participating."); router fired the mandatory opener anyway. User called it out: "That seems like a stock starting phrase." Also observed in session 7e9bc99b (frame lock after opener). Fix: conditional opener — if the user's first turn already establishes context, acknowledge it and ask a clarifying question rather than defaulting to the standard opener. Behavioral contract change required.
 
@@ -33,9 +45,9 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 
 - [x] **BUG-10 — router vocalizes whisper content** — confirmed in session d5920363 (2026-04-29): router spoke `[WHISPER from insight_engine]: The current debug mode is still in design...` verbatim, including the injection prefix. **Confirmed again with multiple instances in session 6275d9ca (2026-04-29):** router answered DevCoach whispers directly and partially read a raw injection prefix aloud. Root cause: `send_realtime_input(text=...)` is the VAD user-turn channel — Gemini treats any text sent there as a user utterance and immediately generates an audio response. **Fix applied (2026-04-29, commit 7f650e7):** switched injection to `send_client_content(turns=..., turn_complete=False)`. Behavioral contract updated with explicit prohibition on speaking, repeating, or acknowledging whisper content. **Validation session 0722db0e (2026-04-29):** user did not hear any whisper vocalization — audio side appears fixed. However, transcript shows a suspicious `Assistant: [WHISPER from dev_coach]: ...` entry (note: source capitalisation `dev_coach` differs from injected `DevCoach`, suggesting transcription of injected input rather than synthesized speech). Working hypothesis: `send_client_content(turn_complete=False)` suppresses audio but causes Gemini to emit spurious `output_transcription` events for the injected content, which our code records as `"Assistant:"` transcript entries — polluting the transcript without audio. **Next step (first task of next session):** run with `LOG_LEVEL=DEBUG` and check whether `response.data` (audio bytes) accompanied the suspicious turn in session 0722db0e or a fresh equivalent. If no audio bytes, BUG-10 audio is confirmed fixed and the transcript pollution is a separate issue to address. If audio bytes were present, the fix is ineffective and Option B (buffer at orchestrator boundary) must be evaluated.
 
-- [ ] **BUG-12 — whisper injections pollute assistant transcript entries** — `send_client_content(turn_complete=False)` suppresses audio but Gemini emits `output_transcription` events for injected text; router records these as `"A:"` entries, polluting the transcript without vocalizing. Confirmed in session e98fae54 (2026-04-30): two raw `[WHISPER from ...]` strings appeared verbatim in assistant lines. Audio fix from BUG-10 appears intact; this is the separate transcript-pollution issue identified in BUG-10 notes.
+- [ ] **BUG-12** — Moved to Now section.
 
-- [ ] **BUG-13 — router opened with fallback phrase rather than facilitator opener** — session e98fae54 (2026-04-30) opened with `"I am functioning correctly."` instead of asking what the user is working on. DevCoach flagged it in the first whisper. Possible BUG-04 regression or an initialization timing issue (router responding before session context is established).
+- [ ] **BUG-13** — Moved to Now section.
 
 - [x] **BUG-14 — whisper delivery metric reported 0% (false negative)** — fixed (2026-04-30): two root causes, neither was a real delivery failure. (1) `session-review.sh` used `--tail=200` on the combined container log stream; with debug-level logging active, the router-service debug lines dominated the tail and pushed turn/whisper lines beyond the window — `session_logs` was effectively empty. Fix: pull the full log stream (no tail) and derive `session_logs` via session-id grep. (2) The orchestrator had no `logging.basicConfig()` — `logger.info()` calls in `session_handler.py` were silently dropped by Python's default WARNING-level root handler. The ingest success log never reached stdout. Fix: added `logging.basicConfig` + `LOG_LEVEL` env var support to `orchestrator/main.py`. Actual delivery for session a23a2089: 5 successful callbacks (200 OK), 2 post-close 404s (expected), 1 NO_WHISPER. Orchestrator logging fix takes effect on next container restart.
 
@@ -44,6 +56,18 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 - [x] **BUG-09 — router overstates PM agent capability** — fixed (2026-04-30, commit 93a1d80): removed PM relay phrasing from behavioral contract. Router now uses first-person transcript framing only: "I'll note that in the transcript." No reference to passing items to any downstream agent or system.
 
 - [x] **BUG-08 — router persona has no human name** — fixed (2026-04-30, commit 93a1d80): voice agent is named Kai. Behavioral contract updated with identity block: "Your name is Kai. If someone asks your name, say 'Kai' and continue. Never refer to yourself as 'the router' in conversation." Service name (Router Service) unchanged.
+
+- [x] **BUG-16 — router says "I'll note that in the transcript"** — fixed (2026-05-04): behavioral contract updated to either silently acknowledge or ask a clarifying follow-up question — no longer announces what it is recording.
+
+- [ ] **BUG-17 — DevCoach whisper loop** — DevCoach sends near-identical action suggestions on consecutive turns without adapting to conversation state; confirmed in session ad7f7e7e (2026-05-03) where 10 of 12 whispers were near-identical variants of the same command recommendation. Needs turn-level deduplication or decay logic to avoid re-suggesting the same action more than once per session unless context materially changes.
+
+- [ ] **BUG-18 — router surfaces internal backlog codes in user-facing speech** — router referenced E4-M and E6-H directly in spoken responses (session ad7f7e7e, 2026-05-03), which the user found confusing. Behavioral contract should explicitly prohibit using internal identifier codes in user-facing responses; describe concepts by meaning, not code.
+
+- [ ] **BUG-19 — insight_engine transcript pollution active** — assistant turn in session 1f89e5e2 (2026-05-04) began with `insight_engine]: User is seeking tools...`, confirming E6-I is unresolved and the insight_engine agent is actively polluting the transcript; investigate and remove before next session.
+
+- [ ] **BUG-20 — router affirmation pattern persists** — router said "Adding new domains and backlogs makes sense" in session 1f89e5e2 (2026-05-04); user responded with all-caps frustration; prior fixes (BUG-09) addressed PM agent language but the router behavioral contract still allows affirmation framing; add explicit prohibition on "makes sense", "that makes sense", "absolutely", and equivalent filler.
+
+- [ ] **BUG-21 — whisper delivery rate dropped to 37.5%** — session 1f89e5e2 (2026-05-04) recorded 24 acks but only 9 deliveries (37.5%), down from 91.7% the prior session; 15 acknowledged dispatches had no delivery callback; investigate whether the router-service callback endpoint silently drops requests under load during longer sessions.
 
 ---
 
@@ -59,7 +83,7 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 
 - [~] **E4-D — Eval: PM agent quality** — won't-do (2026-04-30): closed with PM agent chain.
 
-- [ ] **E4-H** — in Now section above.
+- [x] **E4-H — Design: researcher agent** — delivered (2026-05-04): design doc at `docs/specs/researcher-agent-design.md`. Covers async background research (autonomous + explicit trigger modes), findings persistence in agent wiki, whisper delivery of relevant excerpts. Both trigger modes instrumented for evaluation. See E4-I/J/K for build items.
 
 - [ ] **E4-I — Build: researcher agent core** — implement `/ingest` endpoint: extract research topics from transcript (autonomous inference + explicit instruction detection), tag trigger mode, spawn async Gemini Deep Research tasks, track task status (queued / in-progress / complete), write findings and gaps to agent wiki on completion. Depends on E4-H design.
 
@@ -67,15 +91,15 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 
 - [ ] **E4-K — Eval: autonomous vs. instructed research mode** — compare trigger modes across sessions: relevance of autonomously-inferred topics vs. explicitly requested ones, whisper acceptance rate, user follow-up rate. Feeds into E1 evalset.
 
-- [ ] **E4-L** — in Now section above.
+- [x] **E4-L — Build: `/synthesize` endpoint on ExpertAgentBase** — delivered (2026-05-04): `POST /synthesize` added to base ABC with default Karpathy-style implementation (wiki compression, ingest log awareness). DevCoach overrides with roadmap-aware synthesis via `ROADMAP_PATH` env var. Agents without an override get the default. Absorbed E4-G.
 
-- [ ] **E4-E — Design: agent routing improvements** — smarter orchestrator routing beyond broadcast-all; LLM-assisted relevance scoring so agents only receive turns relevant to their domain. Pre-work: `orchestrator/orchestrator/routing.py` contains a `select_expert` stub that raises `NotImplementedError` and is never called — the orchestrator currently broadcasts directly in `turn_handler.py`. Wire up or clearly tombstone the stub before building on it. Requires both dev-coach and researcher agent operational.
+- [ ] **E4-E** — Moved to Now section (Fan-Out Problem fix).
 
 - [ ] **E4-F — Build: improved routing** — implement the routing design from E4-E.
 
 - [~] **E4-G — Feature: startup synthesis for expert agents** — absorbed into E4-L (`/synthesize` endpoint on ExpertAgentBase). Closed.
 
-- [ ] **E4-M — Feature: dev-coach roadmap awareness** — dev-coach has no awareness of the current product roadmap or milestone state; whispers are oriented only by session history and wiki content. Identified as a design oversight in session a23a2089 (2026-04-30). Scope: load roadmap/backlog snapshot at agent startup (via `/synthesize` or a dedicated context-load step); use milestone and epic state to orient whisper generation. Natural integration point: E4-L `/synthesize` endpoint.
+- [x] **E4-M — Feature: dev-coach roadmap awareness** — delivered (2026-05-04): DevCoach loads `ROADMAP_PATH` at startup and injects the backlog snapshot into both the whisper prompt and the synthesis override. Roadmap-aware synthesis deduces stale vs. active entries against current epic/milestone state.
 
 ---
 
@@ -93,6 +117,8 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 
 - [ ] **E2-E — Eval: knowledge retrieval quality** — did the right knowledge surface? precision/recall for retrieval. Feeds into E1 evalset.
 
+- [ ] **E2-F — Design: multi-domain backlog support** — user wants to manage multiple independent project domains each with its own backlog; current system is hardcoded to the gcsb project; scope: domain registration, per-domain knowledge stores, and routing context scoped to the active domain. First stated in session 1f89e5e2 (2026-05-04).
+
 ---
 
 ## Epic 1 — Evaluation Framework
@@ -101,7 +127,7 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 
 Note: the transcript labeling workflow (E1-C below) was previously blocked by UUID-only filenames. The transcript naming improvement (2026-04-29) unblocks it — files now include timestamp and topic slug.
 
-- [ ] **E1-A — Design: expert selection evalset** — spec and schema for labeled conversation test cases (in progress)
+- [x] **E1-A — Design: expert selection evalset** — delivered (2026-05-04): spec and schema at `docs/specs/evalset-schema-design.md`.
 - [ ] **E1-B — Build: evalset runner** — pytest-based evaluator that scores orchestrator routing decisions against labeled ground truth
 - [ ] **E1-C — Tooling: human labeling workflow** — lightweight process for reviewing transcripts and adding labeled turns to the evalset
 - [ ] **E1-D — CI: eval regression gate** — add evalset runner to GitHub Actions so routing regressions are caught automatically
@@ -144,7 +170,7 @@ Note: the transcript labeling workflow (E1-C below) was previously blocked by UU
 
 - [x] **E6-G — Skill: `/session-review` shorthand** — delivered (2026-04-30): see Now section entry for details.
 
-- [ ] **E6-H — Design: epic naming conventions for developer recall** — user finds current codes + nature-descriptions adequate for orientation but struggles to recall codes from memory mid-session, defaulting to describing epic content instead. Scope: evaluate naming conventions (mnemonic codes, short aliases, or descriptive slugs) that improve unaided recall. The PM agent design (E4-A) should factor in this cognitive style — surfacing items by description match as well as by code. May be fully absorbed into E4-A scope; evaluate at design time.
+- [ ] **E6-H — Design: epic naming conventions for developer recall** — user finds current codes + nature-descriptions adequate for orientation but struggles to recall codes from memory mid-session, defaulting to describing epic content instead. Scope: evaluate naming conventions (mnemonic codes, short aliases, or descriptive slugs) that improve unaided recall. The PM agent design (E4-A) should factor in this cognitive style — surfacing items by description match as well as by code. May be fully absorbed into E4-A scope; evaluate at design time. **Session 1f89e5e2 (2026-05-04) adds a specific behavioral requirement:** when asked for a status report, the router should ask which project/domain the user means before reporting — add this discovery-first pattern explicitly to the behavioral contract rather than leaving it implicit in naming-convention scope.
 
 - [ ] **E6-C1 — SPIKE: debug mode design** — time-boxed (1 day). Resolve the open design questions: activation scope (logging only vs. agent swap vs. both), debug agent identity and context sources, session isolation strategy, passphrase management, reset behavior. Deliverable: written design decision.
 
