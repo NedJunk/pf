@@ -95,7 +95,11 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 
 - [ ] **BUG-24 — DevCoach whispers reference hallucinated personas and invented patterns** — session 7a263bea (2026-05-04): DevCoach suggested "addressing the Project Manager persona", using "Live Timestamp Isolation", "Logging Extraction", "Validation Passphrase", and "Bug Validation Patterns wiki" — none of which exist in the project. Root cause likely: `ROADMAP_PATH` was not wired in `docker-compose.yml`, so E4-M ran with no backlog context and the model filled the void with hallucinated patterns. Fix: mount backlog and set `ROADMAP_PATH` in dev-coach service config; verify whisper quality in next session.
 
-- [ ] **BUG-25 — Router spoke before user's first turn (session opener regression)** — transcript 7a263bea (2026-05-04) shows `A: Which project or domain` preceding the user's first `Hi, I'm verifying...` line. Either the BUG-13 fix was not deployed (containers running old code) or the fix is incomplete for this opener path. Verify after container rebuild; if it persists, re-examine behavioral contract session opener rule.
+- [ ] **BUG-25 — Router spoke before user's first turn (session opener regression)** — transcript 7a263bea (2026-05-04) shows `A: Which project or domain` preceding the user's first `Hi, I'm verifying...` line. Either the BUG-13 fix was not deployed (containers running old code) or the fix is incomplete for this opener path. **Update (session 1cf4dfd2, 2026-05-04):** did not reproduce post-rebuild — router correctly waited for user input. One additional session confirmation recommended before closing.
+
+- [ ] **BUG-26 — Router echoes user-provided codes in speech (BUG-18 incomplete)** — session 1cf4dfd2 (2026-05-04): behavioral contract prohibits internal codes in spoken responses, but router said "BUG-24 relates to...", "BUG-25 is a session opener regression", "BUG-21 tracks whisper delivery rate" — all echoing codes the user introduced. The rule needs to cover the echo case: even when the user names an item by code, Kai must describe it by meaning, not repeat the code.
+
+- [ ] **BUG-27 — DevCoach reports stale backlog state when not rebuilt after backlog changes** — session 1cf4dfd2 (2026-05-04): DevCoach whispered that BUG-24 and BUG-25 were "missing from the backlog" despite being added last session. Likely cause: container restarted without `--build`, running the old image without `ROADMAP_PATH` wiring. `stack.sh up` rebuilds by default but `stack.sh start` does not — add a warning to `stack.sh start` when `docs/backlog.md` has been modified since the image was last built.
 
 - [ ] **E4-E** — Moved to Now section (Fan-Out Problem fix).
 
@@ -187,6 +191,8 @@ Note: the transcript labeling workflow (E1-C below) was previously blocked by UU
 - [ ] **E6-C2 — Build: debug mode activation + logging** — implement passphrase detection and verbose logging mode. No agent swap yet — this delivers the logging half independently.
 
 - [ ] **E6-C3 — Build: debug agent** — implement the debug-aware agent loaded on passphrase activation, informed by the E6-C1 design. Depends on E6-C2.
+
+- [ ] **E6-L — Feature: session-review skill accepts optional user observation input** — user wants to pass a brief "everything seemed good to me" note into the session-review pipeline so subjective user-side quality observations are captured alongside log metrics; implement as a positional argument appended to the `/session-review` command and surfaced in the session-summary module output. Raised in session 1cf4dfd2 (2026-05-04).
 
 - [ ] **E6-K2 — Feature: separate audio-data log gate (`LOG_AUDIO` env var)** — debug logging at `LOG_LEVEL=DEBUG` includes raw audio byte data, making logs excessively verbose and hard to parse for event-sequence diagnostics. Add a `LOG_AUDIO=true` env var (default false) to gate audio-buffer log lines independently from event-sequence debug logging. Raised in session 7a263bea (2026-05-04).
 

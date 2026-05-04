@@ -31,6 +31,40 @@ _down() {
     docker compose down --remove-orphans
 }
 
+_stale_build_warn() {
+    # BUG-27: warn if backlog or compose config changed since images were last built.
+    # DevCoach loads ROADMAP_PATH at startup — a stale image silently misses backlog
+    # updates added since the last build.
+    local image
+    image=$(docker compose images -q dev-coach 2>/dev/null | head -1)
+    [ -z "$image" ] && return
+
+    local image_ts
+    image_ts=$(docker inspect --format '{{.Created}}' "$image" 2>/dev/null | \
+        python3 -c "
+import sys, datetime
+s = sys.stdin.read().strip()
+dt = datetime.datetime.fromisoformat(s.replace('Z', '+00:00'))
+print(int(dt.timestamp()))
+" 2>/dev/null) || return
+    [ -z "$image_ts" ] && return
+
+    local warned=0
+    for f in docs/backlog.md docker-compose.yml; do
+        [ -f "$f" ] || continue
+        local file_ts
+        file_ts=$(python3 -c "import os; print(int(os.path.getmtime('$f')))" 2>/dev/null) || continue
+        if [ "$file_ts" -gt "$image_ts" ]; then
+            echo "WARNING: $f changed since dev-coach image was last built"
+            warned=1
+        fi
+    done
+    if [ "$warned" -eq 1 ]; then
+        echo "         Run './scripts/stack.sh up' to rebuild with the latest config."
+        echo ""
+    fi
+}
+
 _up() {
     local build_flag="${1:-}"
     _colima_check
@@ -39,6 +73,7 @@ _up() {
         echo "==> Building images and starting stack..."
         docker compose up --build
     else
+        _stale_build_warn
         echo "==> Starting stack (no rebuild)..."
         docker compose up
     fi
