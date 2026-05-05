@@ -76,21 +76,39 @@ Tracks effort per sprint item by estimated story points, Claude tokens consumed,
 
 ## Sprint 4 — Code Quality + Routing Build
 
-**Dates:** 2026-05-05 – TBD
+**Dates:** 2026-05-05 – 2026-05-05
 **Goal:** Fix the backlog injection conflict and DevCoach wiki pollution, close BUG-24, build the capability-tag routing design (E4-F), and lock down Kai's facilitation contract boundaries.
 **Capacity:** 13 pts (committed: 10, stretch: 3)
 
 | Item | Description | Est | Tokens | Time | Status |
 |---|---|---|---|---|---|
-| BUG-28 | Fix backlog injection instruction conflict with BUG-18/26 | 1 | — | — | open |
-| BUG-29 | Audit and clean DevCoach wiki of hallucinated content | 2 | — | — | open |
-| BUG-24 | Close after BUG-29 verified clean in one live session | 1 | — | — | open |
-| E4-F | Build improved routing (capability tags + Jaccard scoring) | 4 | — | — | open |
-| E6-N | Design Router facilitation contract boundaries | 2 | — | — | open |
-| E6-A *(stretch)* | Gemini model availability skill + script | 1 | — | — | open |
-| E6-M *(stretch)* | Real-time session metric dashboard (scope/design) | 2 | — | — | open |
+| BUG-28 | Fix backlog injection instruction conflict with BUG-18/26 | 1 | — | — | done |
+| BUG-29 | Audit and clean DevCoach wiki of hallucinated content | 2 | — | — | done |
+| BUG-24 | Close after BUG-29 verified clean in one live session | 1 | — | — | carried |
+| E4-F | Build improved routing (capability tags + Jaccard scoring) | 4 | — | — | done |
+| E6-N | Design Router facilitation contract boundaries | 2 | — | — | done |
+| E6-A *(stretch)* | Gemini model availability skill + script | 1 | — | — | done |
+| E6-M *(stretch)* | Real-time session metric dashboard (scope/design) | 2 | — | — | done |
 
 **Sprint total:** committed 10 pts / stretch 3 pts
+
+---
+
+## Sprint 5 — Expert Ecosystem: Researcher Agent
+
+**Dates:** 2026-05-05 – TBD
+**Goal:** Build the Researcher agent (ingest + whisper) and bring it live in the whisper pipeline. Close BUG-24 via the first clean session after BUG-29 cleanup.
+**Capacity:** 13 pts (committed: 9, stretch: 4)
+
+| Item | Description | Est | Tokens | Time | Status |
+|---|---|---|---|---|---|
+| BUG-24 | Close via first clean post-BUG-29 live session | 1 | — | — | open |
+| E4-I | Build researcher agent core (`/ingest`, async research, wiki writes) | 5 | — | — | open |
+| E4-J | Build researcher agent whisper (`/whisper`, wiki scoring, in-progress status) | 3 | — | — | open |
+| E6-M *(stretch)* | Build session dashboard script (design done in Sprint 4) | 2 | — | — | open |
+| E4-K *(stretch)* | Eval: autonomous vs. instructed research trigger mode comparison | 2 | — | — | open |
+
+**Sprint total:** committed 9 pts / stretch 4 pts
 
 ---
 
@@ -101,4 +119,5 @@ Tracks effort per sprint item by estimated story points, Claude tokens consumed,
 | 1 — M2 Kickoff | 12 | 12 | 3 | — | 00:31 |
 | 2 — Core Stability | 12 | 10 (carried: BUG-21) | 1 (BUG-18) | — | — |
 | 3 — Verification + Remaining Stability | 10 | 9 (carried: BUG-24) | 2 (E6-K2) | — | — |
-| 4 — Code Quality + Routing Build | 10 | — | — | — | — |
+| 4 — Code Quality + Routing Build | 10 | 9 (carried: BUG-24) | 2 (E6-A, E6-M) | — | — |
+| 5 — Expert Ecosystem: Researcher Agent | 9 | — | — | — | — |

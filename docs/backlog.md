@@ -6,7 +6,9 @@ Items are ordered by priority within each epic. Epics are listed in priority ord
 
 ## Now
 
-*Core Stability Milestone: Prioritize resolving transcript pollution, routing inefficiency, and prompt contradictions before adding heavy async agents.*
+*~~Core Stability Milestone~~ — **Complete (2026-05-05).** Transcript pollution, routing inefficiency, and prompt contradictions resolved. Capability-tag routing live. Behavioral contract stable.*
+
+*Expert Ecosystem Milestone: Build a second expert agent (Researcher) and bring it into the whisper pipeline. Validate multi-agent routing with real sessions before expanding further.*
 
 - [x] **BUG-23 — Assistant stopped responding (suspected BUG-22 regression)** — fixed (2026-05-04) via static analysis: after an interrupted event, _output_buf is flushed immediately. A subsequent assistant turn_complete with empty _output_buf was unconditionally clearing _model_generating, blocking _whisper_drain for the next real user turn. Fix: check had_output before the flush; only clear _model_generating when the assistant turn actually produced output. Could not reproduce live (would have required LOG_LEVEL=DEBUG session), but root cause is architecturally sound and covered by regression test.
 
