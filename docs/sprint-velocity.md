@@ -94,21 +94,23 @@ Tracks effort per sprint item by estimated story points, Claude tokens consumed,
 
 ---
 
-## Sprint 5 — Expert Ecosystem: Researcher Agent
+## Sprint 5 — Knowledge Foundation + Dashboard
 
 **Dates:** 2026-05-05 – TBD
-**Goal:** Build the Researcher agent (ingest + whisper) and bring it live in the whisper pipeline. Close BUG-24 via the first clean session after BUG-29 cleanup.
-**Capacity:** 13 pts (committed: 9, stretch: 4)
+**Goal:** Spike the knowledge layer design before committing to a second agent. Build the session dashboard (design done). Close BUG-24 via the first clean live session.
+**Capacity:** 9 pts (committed: 6, stretch: 3)
+
+*Pivot rationale: Researcher agent deferred — async research latency (30–120s) makes whisper delivery stale for typical solo-dev sessions; autonomous topic inference requires E1 evalset to tune; no unified wiki schema exists yet. E2-A spike establishes the schema foundation that both DevCoach and a future Researcher should build on.*
 
 | Item | Description | Est | Tokens | Time | Status |
 |---|---|---|---|---|---|
 | BUG-24 | Close via first clean post-BUG-29 live session | 1 | — | — | open |
-| E4-I | Build researcher agent core (`/ingest`, async research, wiki writes) | 5 | — | — | open |
-| E4-J | Build researcher agent whisper (`/whisper`, wiki scoring, in-progress status) | 3 | — | — | open |
-| E6-M *(stretch)* | Build session dashboard script (design done in Sprint 4) | 2 | — | — | open |
-| E4-K *(stretch)* | Eval: autonomous vs. instructed research trigger mode comparison | 2 | — | — | open |
+| E2-A | SPIKE: session knowledge extraction design (2-day time-box) | 2 | — | — | open |
+| E6-M | Build session dashboard script (`scripts/session-dashboard.sh`) | 2 | — | — | open |
+| E2-B *(stretch)* | SPIKE: knowledge retrieval strategy (1-day time-box, follows E2-A) | 1 | — | — | open |
+| E4-I *(stretch)* | Build researcher agent core — only after E2-A resolves wiki schema | 5 | — | — | open |
 
-**Sprint total:** committed 9 pts / stretch 4 pts
+**Sprint total:** committed 6 pts / stretch 6 pts (E4-I stretch is aspirational — carry if E2-A takes time)
 
 ---
 
@@ -120,4 +122,4 @@ Tracks effort per sprint item by estimated story points, Claude tokens consumed,
 | 2 — Core Stability | 12 | 10 (carried: BUG-21) | 1 (BUG-18) | — | — |
 | 3 — Verification + Remaining Stability | 10 | 9 (carried: BUG-24) | 2 (E6-K2) | — | — |
 | 4 — Code Quality + Routing Build | 10 | 9 (carried: BUG-24) | 2 (E6-A, E6-M) | — | — |
-| 5 — Expert Ecosystem: Researcher Agent | 9 | — | — | — | — |
+| 5 — Knowledge Foundation + Dashboard | 6 | — | — | — | — |
