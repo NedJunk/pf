@@ -3,6 +3,7 @@ import logging
 import httpx
 from orchestrator.agent_registry import AgentConfig
 from orchestrator.health_monitor import HealthMonitor
+from orchestrator.routing import select_experts
 
 logger = logging.getLogger(__name__)
 
@@ -14,17 +15,20 @@ async def handle_turn(
     confidence_threshold: float,
     agent_timeout: int,
     router_service_url: str,
+    routing_threshold: float = 0.05,
 ) -> None:
     healthy = [a for a in agents if health_monitor.is_healthy(a.name)]
     if not healthy:
         logger.warning("No healthy agents for turn event session=%s", turn_event["session_id"])
         return
 
+    routed = select_experts(turn_event, healthy, routing_threshold)
+
     session_id = turn_event["session_id"]
     callback_url = f"{router_service_url}/sessions/{session_id}/whisper"
 
     await asyncio.gather(
-        *[_call_agent(a, turn_event, callback_url, confidence_threshold, agent_timeout) for a in healthy],
+        *[_call_agent(a, turn_event, callback_url, confidence_threshold, agent_timeout) for a in routed],
         return_exceptions=True,
     )
 

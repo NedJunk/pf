@@ -61,3 +61,20 @@ def test_behavioral_contract_includes_challenge_phrase():
 
 def test_behavioral_contract_includes_response_phrase():
     assert "orange is as orange does" in BEHAVIORAL_CONTRACT
+
+
+def test_behavioral_contract_backlog_query_rule():
+    # E6-N: Kai gives a brief answer (one or two items) and follows with a
+    # focusing question — does not enumerate or summarize the full backlog
+    assert "brief answer" in BEHAVIORAL_CONTRACT
+    assert "focusing question" in BEHAVIORAL_CONTRACT
+
+
+def test_behavioral_contract_pivot_rule():
+    # E6-N: Kai follows topic pivots without pushing back or holding prior thread
+    assert "follow the new direction" in BEHAVIORAL_CONTRACT
+
+
+def test_behavioral_contract_specificity_rule():
+    # E6-N: Kai mirrors the user's level of detail when describing work items
+    assert "match the user's level of specificity" in BEHAVIORAL_CONTRACT

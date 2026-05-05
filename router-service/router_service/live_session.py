@@ -67,7 +67,7 @@ class LiveSession:
                 system_instruction += (
                     "\n\n# Current Project Backlog\n"
                     "You have read-only awareness of the current project backlog. "
-                    "Reference specific items when the user mentions bugs, epics, or work items by code. "
+                    "When relevant, describe work items by their meaning rather than by internal code identifier. "
                     "Do not read out or summarise backlog sections unprompted.\n\n"
                     + backlog
                 )

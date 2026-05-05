@@ -3,3 +3,11 @@ agent_timeout_seconds: 5
 agents:
   - name: "DevCoach"
     url: "http://dev-coach:8082"
+    tags:
+      - bug
+      - backlog
+      - sprint
+      - test
+      - implementation
+      - refactor
+      - architecture

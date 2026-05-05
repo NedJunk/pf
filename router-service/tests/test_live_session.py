@@ -153,6 +153,9 @@ async def test_connect_appends_backlog_to_system_instruction(mock_genai, tmp_pat
     si = call_kwargs.kwargs["config"]["system_instruction"]
     assert "BUG-04 conditional opener" in si
     assert "Current Project Backlog" in si
+    # BUG-28: preamble must describe by meaning, not reference by code identifier
+    assert "describe work items by their meaning" in si
+    assert "Reference specific items" not in si
 
 
 @pytest.mark.asyncio
