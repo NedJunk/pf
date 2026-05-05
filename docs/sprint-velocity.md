@@ -105,10 +105,10 @@ Tracks effort per sprint item by estimated story points, Claude tokens consumed,
 | Item | Description | Est | Tokens | Time | Status |
 |---|---|---|---|---|---|
 | BUG-24 | Close via first clean post-BUG-29 live session | 1 | — | — | open |
-| E2-A | SPIKE: session knowledge extraction design (2-day time-box) | 2 | — | — | open |
-| E6-M | Build session dashboard script (`scripts/session-dashboard.sh`) | 2 | — | — | open |
-| E2-B *(stretch)* | SPIKE: knowledge retrieval strategy (1-day time-box, follows E2-A) | 1 | — | — | open |
-| E4-I *(stretch)* | Build researcher agent core — only after E2-A resolves wiki schema | 5 | — | — | open |
+| E2-A | SPIKE: session knowledge extraction design (2-day time-box) | 2 | — | 00:20 | done |
+| E6-M | Build session dashboard script (`scripts/session-dashboard.sh`) | 2 | — | 00:25 | done |
+| E2-B *(stretch)* | SPIKE: knowledge retrieval strategy (1-day time-box, follows E2-A) | 1 | — | 00:20 | done |
+| E4-I *(stretch)* | Build researcher agent core — only after E2-A resolves wiki schema | 5 | — | — | carried |
 
 **Sprint total:** committed 6 pts / stretch 6 pts (E4-I stretch is aspirational — carry if E2-A takes time)
 
@@ -122,4 +122,4 @@ Tracks effort per sprint item by estimated story points, Claude tokens consumed,
 | 2 — Core Stability | 12 | 10 (carried: BUG-21) | 1 (BUG-18) | — | — |
 | 3 — Verification + Remaining Stability | 10 | 9 (carried: BUG-24) | 2 (E6-K2) | — | — |
 | 4 — Code Quality + Routing Build | 10 | 9 (carried: BUG-24) | 2 (E6-A, E6-M) | — | — |
-| 5 — Knowledge Foundation + Dashboard | 6 | — | — | — | — |
+| 5 — Knowledge Foundation + Dashboard | 5 | 4 (carried: BUG-24) | 1 (E2-B) | — | ~01:05 |
