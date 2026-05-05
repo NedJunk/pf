@@ -40,8 +40,11 @@ def test_behavioral_contract_prohibits_affirmations():
 
 
 def test_behavioral_contract_prohibits_internal_codes():
-    # BUG-18: router must not speak internal backlog codes (BUG-XX, E4-M, etc.)
+    # BUG-18/BUG-26: codes are prohibited both when Kai raises them and when
+    # the user introduces one and Kai would echo it back
     assert "internal backlog" in BEHAVIORAL_CONTRACT
+    assert "even when the user introduces one" in BEHAVIORAL_CONTRACT
+    assert "echo" in BEHAVIORAL_CONTRACT
 
 
 def test_behavioral_contract_prohibits_summaries_and_directives():

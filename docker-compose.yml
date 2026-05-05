@@ -15,6 +15,7 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       # BUG-07 debug logging: run with LOG_LEVEL=DEBUG to see output_transcription/input_transcription
       # chunks and turn_complete branch+buf state per session.
+      # Audio bytes are gated separately: add LOG_AUDIO=true to also log raw PCM frame sizes.
     volumes:
       - ./transcripts:/app/transcripts
       - ./docs/backlog.md:/app/backlog.md:ro

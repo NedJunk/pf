@@ -6,9 +6,14 @@ Run a structured post-session analysis. Follow these steps in order.
 
 Parse the arguments: `$ARGUMENTS`
 
-- Empty → run `! ./scripts/session-review.sh` and set SESSION_TYPE to auto-detect.
-- Matches one of `debug`, `design`, `implementation`, `exploration` exactly → run `! ./scripts/session-review.sh`, set SESSION_TYPE to that value, skip Step 2.
-- Anything else → treat as a session ID prefix, run `! ./scripts/session-review.sh $ARGUMENTS`, set SESSION_TYPE to auto-detect.
+Arguments may include an optional **user observation note** after the session specifier. The note is any text that is not itself a session specifier. Extract it and store it as USER_OBSERVATION (may be empty).
+
+Parsing rules (apply in order):
+
+1. **Empty** → SESSION_SPEC = none, USER_OBSERVATION = "". Run `! ./scripts/session-review.sh`. Set SESSION_TYPE to auto-detect.
+2. **First word is exactly one of** `debug`, `design`, `implementation`, `exploration` → SESSION_SPEC = that word, USER_OBSERVATION = any remaining text. Run `! ./scripts/session-review.sh`. Set SESSION_TYPE to that value, skip Step 2.
+3. **First word looks like a session ID prefix** (short alphanumeric string of 4–10 characters without spaces, not matching a session type) → SESSION_SPEC = that word, USER_OBSERVATION = any remaining text. Run `! ./scripts/session-review.sh <SESSION_SPEC>`. Set SESSION_TYPE to auto-detect.
+4. **Anything else** → SESSION_SPEC = none, USER_OBSERVATION = full argument string. Run `! ./scripts/session-review.sh`. Set SESSION_TYPE to auto-detect.
 
 Capture the full script output as the review bundle. It contains a LOG METRICS block and the full transcript.
 
@@ -40,6 +45,8 @@ Run every module in the order listed. Output each module's section with a `###` 
 
 ### Module: session-summary
 In 3–5 sentences: what happened, key outcomes, decisions made, or validations completed.
+
+If USER_OBSERVATION is non-empty, append it verbatim under the heading **User observation:** so it is captured alongside the objective log data.
 
 ### Module: log-analysis
 Parse the LOG METRICS block from the bundle. Report each metric. Flag anomalies:

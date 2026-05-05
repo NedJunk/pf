@@ -15,6 +15,11 @@ from src.router.transcript_writer import TranscriptWriter
 
 logger = logging.getLogger(__name__)
 
+# Gate for raw audio-buffer log lines. LOG_LEVEL=DEBUG surfaces event-sequence
+# diagnostics (transcription chunks, turn_complete, interrupts); audio byte
+# payloads are additionally gated by LOG_AUDIO=true so event logs stay readable.
+_LOG_AUDIO = os.environ.get("LOG_AUDIO", "").lower() in ("1", "true", "yes")
+
 
 class LiveSession:
     def __init__(
@@ -163,6 +168,11 @@ class LiveSession:
                 if message.get("type") == "websocket.disconnect":
                     break
                 if message.get("bytes"):
+                    if _LOG_AUDIO:
+                        logger.debug(
+                            "[%s] browser→gemini audio %d bytes",
+                            self.session_id, len(message["bytes"]),
+                        )
                     await self._gemini_session.send_realtime_input(
                         audio=types.Blob(
                             data=message["bytes"], mime_type="audio/pcm;rate=16000"
@@ -176,6 +186,11 @@ class LiveSession:
             while True:
                 async for response in self._gemini_session.receive():
                     if response.data:
+                        if _LOG_AUDIO:
+                            logger.debug(
+                                "[%s] gemini→browser audio %d bytes",
+                                self.session_id, len(response.data),
+                            )
                         await browser_ws.send_bytes(response.data)
                     sc = response.server_content
                     if not sc:

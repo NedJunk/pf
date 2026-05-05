@@ -53,9 +53,52 @@ Tracks effort per sprint item by estimated story points, Claude tokens consumed,
 
 ---
 
+## Sprint 3 — Verification + Remaining Stability
+
+**Dates:** 2026-05-05 – 2026-05-05
+**Goal:** Close Sprint 2 verification debt, fix the BUG-18 echo regression (BUG-26), and unblock the fan-out routing track.
+**Capacity:** 13 pts (committed: 10, stretch: 3)
+
+| Item | Description | Est | Tokens | Time | Status |
+|---|---|---|---|---|---|
+| BUG-26 | Behavioral contract echo-case for user-provided codes | 2 | — | — | done |
+| BUG-21 | Confirm whisper delivery rate over 24+ turn session | 2 | — | — | done |
+| BUG-24 | Verify ROADMAP_PATH wiring resolves DevCoach context gap | 1 | — | — | carried |
+| BUG-25 | Close after one more clean-session confirmation | 1 | — | — | done |
+| E4-E | Design: smarter orchestrator routing / fan-out | 2 | — | — | done |
+| E6-L | /session-review: optional user observation argument | 2 | — | — | done |
+| E6-K2 *(stretch)* | Separate audio-data log gate (LOG_AUDIO env var) | 2 | — | — | done |
+| E6-A *(stretch)* | Automate session bundle ingest (remove manual ! prefix) | 1 | — | — | open |
+
+**Sprint total:** committed 10 pts / stretch 3 pts
+
+---
+
+## Sprint 4 — Code Quality + Routing Build
+
+**Dates:** 2026-05-05 – TBD
+**Goal:** Fix the backlog injection conflict and DevCoach wiki pollution, close BUG-24, build the capability-tag routing design (E4-F), and lock down Kai's facilitation contract boundaries.
+**Capacity:** 13 pts (committed: 10, stretch: 3)
+
+| Item | Description | Est | Tokens | Time | Status |
+|---|---|---|---|---|---|
+| BUG-28 | Fix backlog injection instruction conflict with BUG-18/26 | 1 | — | — | open |
+| BUG-29 | Audit and clean DevCoach wiki of hallucinated content | 2 | — | — | open |
+| BUG-24 | Close after BUG-29 verified clean in one live session | 1 | — | — | open |
+| E4-F | Build improved routing (capability tags + Jaccard scoring) | 4 | — | — | open |
+| E6-N | Design Router facilitation contract boundaries | 2 | — | — | open |
+| E6-A *(stretch)* | Gemini model availability skill + script | 1 | — | — | open |
+| E6-M *(stretch)* | Real-time session metric dashboard (scope/design) | 2 | — | — | open |
+
+**Sprint total:** committed 10 pts / stretch 3 pts
+
+---
+
 ## Velocity Summary
 
 | Sprint | Committed | Delivered | Stretch Delivered | Tokens (total) | Time (total) |
 |---|---|---|---|---|---|
 | 1 — M2 Kickoff | 12 | 12 | 3 | — | 00:31 |
 | 2 — Core Stability | 12 | 10 (carried: BUG-21) | 1 (BUG-18) | — | — |
+| 3 — Verification + Remaining Stability | 10 | 9 (carried: BUG-24) | 2 (E6-K2) | — | — |
+| 4 — Code Quality + Routing Build | 10 | — | — | — | — |
