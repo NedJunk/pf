@@ -42,7 +42,7 @@ now_ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 # Fetch logs since a given timestamp from specified services
 fetch_logs() {
   local since="$1"
-  local services="${2:-router-service orchestrator}"
+  local services="${2:-router-service orchestrator dev-coach}"
   docker compose -f "$COMPOSE_FILE" logs --since "$since" $services 2>/dev/null \
     | grep -v "GET /health\|/healthz" || true
 }
@@ -56,7 +56,7 @@ discover_session() {
 
   while [[ $(date +%s) -lt $deadline ]]; do
     local chunk
-    chunk=$(fetch_logs "$since" "router-service orchestrator")
+    chunk=$(fetch_logs "$since" "router-service orchestrator dev-coach")
 
     # Pattern: "POST /sessions/abc12345-..." or session ID embedded in log line
     # Session IDs are 8-char hex; UUIDs are longer — grab 8 chars of a UUID segment

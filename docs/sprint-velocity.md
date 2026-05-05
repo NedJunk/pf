@@ -98,7 +98,7 @@ Tracks effort per sprint item by estimated story points, Claude tokens consumed,
 
 **Dates:** 2026-05-05 – TBD
 **Goal:** Spike the knowledge layer design before committing to a second agent. Build the session dashboard (design done). Close BUG-24 via the first clean live session.
-**Capacity:** 9 pts (committed: 6, stretch: 3)
+**Capacity:** 9 pts (committed: 5, stretch: 6)
 
 *Pivot rationale: Researcher agent deferred — async research latency (30–120s) makes whisper delivery stale for typical solo-dev sessions; autonomous topic inference requires E1 evalset to tune; no unified wiki schema exists yet. E2-A spike establishes the schema foundation that both DevCoach and a future Researcher should build on.*
 
@@ -110,7 +110,7 @@ Tracks effort per sprint item by estimated story points, Claude tokens consumed,
 | E2-B *(stretch)* | SPIKE: knowledge retrieval strategy (1-day time-box, follows E2-A) | 1 | — | 00:20 | done |
 | E4-I *(stretch)* | Build researcher agent core — only after E2-A resolves wiki schema | 5 | — | — | carried |
 
-**Sprint total:** committed 6 pts / stretch 6 pts (E4-I stretch is aspirational — carry if E2-A takes time)
+**Sprint total:** committed 5 pts / stretch 6 pts (E4-I stretch is aspirational — carry if E2-A takes time)
 
 ---
 
