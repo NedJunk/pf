@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import yaml
 
 
@@ -6,6 +6,7 @@ import yaml
 class AgentConfig:
     name: str
     url: str
+    tags: list = field(default_factory=list)
 
 
 def load_registry(config_path: str) -> tuple[list[AgentConfig], float, int]:
@@ -13,7 +14,7 @@ def load_registry(config_path: str) -> tuple[list[AgentConfig], float, int]:
         data = yaml.safe_load(f) or {}
     try:
         agents = [
-            AgentConfig(name=a["name"], url=a["url"])
+            AgentConfig(name=a["name"], url=a["url"], tags=a.get("tags", []))
             for a in data.get("agents", [])
         ]
     except (KeyError, TypeError) as e:

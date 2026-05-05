@@ -20,7 +20,7 @@ def _monitor(healthy=True):
 
 
 def _agent():
-    return AgentConfig(name="DevCoach", url="http://dev-coach:8082")
+    return AgentConfig(name="DevCoach", url="http://dev-coach:8082", tags=[])
 
 
 def _mock_client_cm(status_code=202):
@@ -51,7 +51,7 @@ async def test_no_call_when_all_agents_unhealthy():
     mock_client.post = mock_post
 
     with patch("orchestrator.turn_handler.httpx.AsyncClient", return_value=cm):
-        await handle_turn(_event(), [_agent()], _monitor(healthy=False), 0.5, 5, "http://r:8080")
+        await handle_turn(_event(), [_agent()], _monitor(healthy=False), 0.5, 5, "http://r:8080", routing_threshold=0.0)
 
     assert len(posted) == 0
 
@@ -70,7 +70,7 @@ async def test_dispatches_to_agent_with_callback_url():
     mock_client.post = mock_post
 
     with patch("orchestrator.turn_handler.httpx.AsyncClient", return_value=cm):
-        await handle_turn(_event(), [_agent()], _monitor(), 0.5, 5, "http://router:8080")
+        await handle_turn(_event(), [_agent()], _monitor(), 0.5, 5, "http://router:8080", routing_threshold=0.0)
 
     assert len(posted) == 1
     url, payload = posted[0]
@@ -93,7 +93,7 @@ async def test_does_not_post_to_router_directly():
     mock_client.post = mock_post
 
     with patch("orchestrator.turn_handler.httpx.AsyncClient", return_value=cm):
-        await handle_turn(_event(), [_agent()], _monitor(), 0.5, 5, "http://router:8080")
+        await handle_turn(_event(), [_agent()], _monitor(), 0.5, 5, "http://router:8080", routing_threshold=0.0)
 
     assert not any("router" in u for u in posted_urls), (
         "Orchestrator should not POST to router — agent calls back directly"
@@ -114,7 +114,7 @@ async def test_confidence_threshold_passed_to_agent():
     mock_client.post = mock_post
 
     with patch("orchestrator.turn_handler.httpx.AsyncClient", return_value=cm):
-        await handle_turn(_event(), [_agent()], _monitor(), 0.8, 5, "http://router:8080")
+        await handle_turn(_event(), [_agent()], _monitor(), 0.8, 5, "http://router:8080", routing_threshold=0.0)
 
     assert posted[0]["confidence_threshold"] == 0.8
 
@@ -124,4 +124,4 @@ async def test_logs_warning_on_non_202_response():
     cm, _ = _mock_client_cm(status_code=500)
     with patch("orchestrator.turn_handler.httpx.AsyncClient", return_value=cm):
         # should not raise
-        await handle_turn(_event(), [_agent()], _monitor(), 0.5, 5, "http://router:8080")
+        await handle_turn(_event(), [_agent()], _monitor(), 0.5, 5, "http://router:8080", routing_threshold=0.0)

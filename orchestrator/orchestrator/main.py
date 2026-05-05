@@ -13,6 +13,7 @@ logging.getLogger("orchestrator").setLevel(_log_level)
 
 _REGISTRY_PATH = os.path.join(os.path.dirname(__file__), "agents.yaml")
 _ROUTER_SERVICE_URL = os.environ.get("ROUTER_SERVICE_URL", "")
+_ROUTING_THRESHOLD = float(os.environ.get("ROUTING_RELEVANCE_THRESHOLD", "0.05"))
 _agents, _threshold, _timeout = load_registry(_REGISTRY_PATH)
 _monitor = HealthMonitor(_agents)
 
@@ -39,6 +40,7 @@ async def receive_turn(body: dict, background_tasks: BackgroundTasks):
         confidence_threshold=_threshold,
         agent_timeout=_timeout,
         router_service_url=_ROUTER_SERVICE_URL,
+        routing_threshold=_ROUTING_THRESHOLD,
     )
     return {}
 
