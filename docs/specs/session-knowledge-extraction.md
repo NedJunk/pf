@@ -79,9 +79,13 @@ Orchestrator calls this on session open (parallel to the existing session-close 
 
 ## 5. Two-Day Plan
 
+### Pre-Spike: Confirm Transcript Availability
+
+Before starting Day 1, check `./transcripts/` for transcripts that contain substantive developer discussion (architectural decisions, deferred items, recurring problems). If fewer than three such transcripts exist, run a short live session first to generate input material, or note the gap and use what is available.
+
 ### Day 1 — Validate Extraction Quality
 
-**Step 1:** Run `_ingest_session()` against the three most recent transcripts in `./transcripts/`. Use a one-shot script calling DevCoach's `_ingest_session` directly — not a live session.
+**Step 1:** Run `_ingest_session()` against the three most recent substantive transcripts in `./transcripts/`. Use a one-shot script calling DevCoach's `_ingest_session` directly — not a live session.
 
 **Evaluate:**
 - Are pages specific to this developer's work or generic?
@@ -94,17 +98,21 @@ Orchestrator calls this on session open (parallel to the existing session-close 
 
 ### Day 2 — Validate Retrieval
 
-**Step 4:** Run `_query_wiki()` with representative session-start contexts (goals + project_map strings from past sessions). Inspect which pages are returned.
+**Step 4:** For each test query (2–3 representative goal/project_map strings from past sessions), manually identify the 2–4 wiki pages that *should* be returned based on topic overlap. Run `_query_wiki()` and record how many of those expected pages are returned.
+
+**Retrieval threshold:**
+- **≥50% recall** (e.g., 2 of 4 expected pages returned) → retrieval is adequate; skip `/prime`
+- **<50% recall**, or engineer had to manually scan the index to find relevant pages → retrieval is weak; proceed to Step 5
 
 **Evaluate:**
 - Does retrieval surface cross-session context, or only the most recent ingest?
 - Do follow-up items surface when the topic is mentioned?
 
-**Step 5:** If retrieval is weak, evaluate the index.md format as the bottleneck:
+**Step 5:** If retrieval is weak (<50% recall), evaluate the index.md format as the bottleneck:
 - Option: richer index entries (add keyword tags per page)
 - Option: full-text fallback scan when LLM returns NONE
 
-**Step 6:** Implement `/prime` only if passive session-start priming is confirmed insufficient.
+**Step 6:** Implement `/prime` only if retrieval is confirmed weak (Step 4 threshold not met).
 
 ---
 
