@@ -257,19 +257,22 @@ Confirm `expert-agents/dev-coach/wiki/pages/` has ≥ 5 pages from E2-A ingest r
 
 4. Assemble 3–5 test queries from past session context (goal strings, project_map entries, or history tails from real sessions).
 5. Manually identify 2–4 ground-truth pages for each query.
-6. Measure recall for three approaches:
+6. Measure recall and fallback rate for three approaches:
 
-| Query | GT count | LLM-only | TF-IDF-only | TF-IDF+fallback |
-|---|---|---|---|---|
-| … | … | … | … | … |
+| Query | GT count | LLM-only | TF-IDF-only | TF-IDF+fallback | Fallback fired? |
+|---|---|---|---|---|---|
+| … | … | … | … | … | yes/no |
 
-7. Calibrate `_TFIDF_THRESHOLD`: score all ground-truth pages, set threshold just below the lowest true-positive score.
+The **fallback rate** column is critical: if the TF-IDF fast path fires the LLM fallback on > 50% of queries, the vocabulary is misaligned with the query terminology — that is a wiki content problem, not a retrieval algorithm problem. Record this separately from recall.
+
+7. Calibrate `_TFIDF_THRESHOLD`: score all ground-truth pages, set threshold just below the lowest true-positive score. Note: if any ground-truth page scores `0.0` (zero token overlap), the TF-IDF fast path cannot surface it — the fallback is the only path for that page. Count these as vocabulary-mismatch cases, not threshold failures.
 
 ### Pass Threshold
 
 - Average recall ≥ 50% across all test queries
 - Average recall ≥ LLM-only baseline (no regression)
 - TF-IDF fast path latency < 10ms (expected < 5ms at < 50 pages)
+- **Fallback rate < 50%** — if the LLM fires on most queries, record as vocabulary misalignment and escalate to ingest prompt improvement before merging
 
 If TF-IDF-only recall matches or exceeds TF-IDF+fallback on all queries, drop the LLM fallback to simplify the code.
 
@@ -279,8 +282,9 @@ If TF-IDF-only recall matches or exceeds TF-IDF+fallback on all queries, drop th
 
 | Condition | Action |
 |---|---|
-| TF-IDF+fallback recall ≥ 50% AND ≥ LLM-only baseline | Accept; merge implementation |
+| TF-IDF+fallback recall ≥ 50% AND ≥ LLM-only AND fallback rate < 50% | Accept; merge implementation |
 | TF-IDF+fallback recall ≥ 50% but TF-IDF-only equals it | Drop LLM fallback; simplify |
+| Recall ≥ 50% but fallback rate ≥ 50% | Fast path provides no benefit; fix ingest vocabulary before merging |
 | Recall < 50%, root cause: poor page vocabulary | Enrich ingest prompt / wiki_schema; re-test |
 | Recall < 50%, root cause: sparse wiki | Not a retrieval problem; need more sessions; defer |
 | Recall < 50%, root cause: semantic mismatch | Add LLM re-rank on TF-IDF subset (full hybrid); 1-day follow-on spike |
