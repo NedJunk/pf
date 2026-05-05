@@ -46,7 +46,8 @@ services:
       - "8082:8082"
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - DEV_COACH_MODEL=${DEV_COACH_MODEL:-gemini-2.0-flash}
+      # Run scripts/gemini-models.sh to verify current model strings
+      - DEV_COACH_MODEL=${DEV_COACH_MODEL:-gemini-2.0-flash-001}
       - ROADMAP_PATH=/app/backlog.md
     volumes:
       - ./expert-agents/dev-coach/wiki:/app/wiki
